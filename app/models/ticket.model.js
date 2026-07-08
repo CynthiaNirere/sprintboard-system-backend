@@ -1,30 +1,39 @@
-module.exports = (sequelize, Sequelize) => {
-    const Ticket = sequelize.define("ticket", {
-        QRCode: {
-            type: Sequelize.STRING,
-            allowNull: false,
-        },
-        ticketType: {
-            type: Sequelize.STRING(25),
-            allowNull: false,
-        },
-        purchaseDate: {
-            type: Sequelize.DATE,
-            allowNull: false,
-        },
-        ticketStatus: {
-            type: Sequelize.STRING(25),
-            allowNull: false,
-        },
-         },
-        {
-            indexes: [
-                {
-                    unique: true,
-                    fields: ['eventId', 'seatId']
-                }
-            ]
-        }
-    );
-    return Ticket;
+module.exports = (sequelize, Sequelize, DataTypes) => {
+  const Ticket = sequelize.define("ticket", {
+    title: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    type: {
+      type: DataTypes.ENUM('TASK', 'FEATURE', 'BUG'),
+      allowNull: false,
+    },
+    priority: {
+      type: DataTypes.ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL'),
+      allowNull: false,
+    },
+    story_points: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    github_branch_name: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    github_pr_url: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+  }, {
+    tableName: "tickets",
+    timestamps: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at"
+  });
+
+  return Ticket;
 };
