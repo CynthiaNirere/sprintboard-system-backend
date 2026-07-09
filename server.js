@@ -50,6 +50,7 @@ require("./app/routes/seat.routes.js")(app);
 require("./app/routes/ticket.routes.js")(app);
 require("./app/routes/refund.routes.js")(app);
 require("./app/routes/order.routes.js")(app);
+require("./app/routes/sprint.routes.js")(app);
 
 // set port, listen for requests
 const PORT = process.env.PORT || 3200;

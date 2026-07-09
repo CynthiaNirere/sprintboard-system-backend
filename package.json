@@ -1,16 +1,16 @@
 {
-  "name": "ticketing-system-backend",
+  "name": "sprintboard-system-backend",
   "version": "1.0.0",
-  "description": "Planetarium Ticketing Sytem API",
+  "description": "SprintBoard Agile Project Management API",
   "main": "server.js",
   "scripts": {
-    "test": "jest --",
+    "test": "jest --runInBand",
+    "test:coverage": "jest --coverage --runInBand",
     "start": "node server.js",
     "init-db": "node scripts/init-db.js",
     "init-db:wipe": "node scripts/init-db.js --wipe",
     "init-db:keep": "node scripts/init-db.js --no-wipe",
-    "bundle": "mkdir -p deploy && cp -r app node_modules server.js package.json package-lock.json ticketing-system-backend.service .env deploy",
-    "seedSeats" : "node scripts/seatSeeder.js"
+    "bundle": "mkdir -p deploy && cp -r app node_modules server.js package.json package-lock.json sprintboard-system-backend.service .env deploy"
   },
   "keywords": [
     "node.js",
@@ -19,18 +19,21 @@
   ],
   "author": "cs",
   "license": "ISC",
+  "jest": {
+    "setupFiles": ["dotenv/config"]
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",
     "express": "^4.17.3",
-    "googleapis": "^118.0.0",
-    "jest": "^29.3.1",
     "jsonwebtoken": "^9.0.0",
     "mysql2": "^3.2.3",
     "nodemailer": "^9.0.1",
-    "parse": "^4.0.1",
-    "sequelize": "^6.19.0",
+    "sequelize": "^6.19.0"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2",
     "supertest": "^6.3.3"
   }
 }
