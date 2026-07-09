@@ -9,7 +9,7 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
       allowNull: false,
     },
     status: {
-      type: DataTypes.ENUM('PENDING', 'PASSED', 'FAILED', 'BLOCKED'),
+      type: DataTypes.ENUM('PENDING', 'FAILED', 'PASSED'),
       allowNull: false,
       defaultValue: 'PENDING',
     }
@@ -17,7 +17,7 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
     tableName: "tests",
     timestamps: true,
     createdAt: "created_at",
-    updatedat: "updated_at"
+    updatedAt: "updated_at"
   });
 
   return Test;

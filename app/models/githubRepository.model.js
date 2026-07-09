@@ -11,7 +11,7 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
   }, {
     tableName: "github_repositories",
     timestamps: true,
-    createdAt: "createdAt",
+    createdAt: "created_at",
     updatedAt: "updated_at"
   });
 

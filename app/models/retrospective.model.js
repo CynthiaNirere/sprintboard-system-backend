@@ -2,16 +2,15 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
   const Retrospective = sequelize.define("retrospective", {
     title: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
     },
     status: {
       type: DataTypes.ENUM('SCHEDULED', 'IN_PROGRESS', 'COMPLETED'),
       allowNull: false,
-      defaultValue: 'SCHEDULED'
     },
     completion_date: {
       type: DataTypes.DATE,
-      allowNull: true
+      allowNull: true,
     }
   }, {
     tableName: "retrospectives",

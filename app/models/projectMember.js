@@ -1,9 +1,8 @@
 module.exports = (sequelize, Sequelize, DataTypes) => {
   const ProjectMember = sequelize.define("project_member", {
     project_role: {
-      type: DataTypes.ENUM('PROJECT ADMIN', 'SCRUM MASTER', 'DEVELOPER', 'QA_TESTER'),
+      type: DataTypes.ENUM('PROJECT_ADMIN', 'DEVELOPER', 'QA_TESTER'),
       allowNull: false,
-      defaultValue: 'DEVELOPER'
     }
   }, {
     tableName: "project_members",

@@ -9,11 +9,11 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
       allowNull: true,
     },
     type: {
-      type: DataTypes.ENUM('TASK', 'FEATURE', 'BUG'),
+      type: DataTypes.ENUM('TASK', 'NEW FEATURE', 'ENHANCEMENT', 'BUG'),
       allowNull: false,
     },
     priority: {
-      type: DataTypes.ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL'),
+      type: DataTypes.ENUM('LOW', 'MEDIUM', 'HIGH'),
       allowNull: false,
     },
     story_points: {

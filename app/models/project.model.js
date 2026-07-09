@@ -12,7 +12,7 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
     tableName: "projects",
     timestamps: true,
     createdAt: "created_at",
-    udpatedAt: "updated_at"
+    updatedAt: "updated_at"
   });
 
   return Project;
