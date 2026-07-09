@@ -4,18 +4,17 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    old_value: {
+    oldValue: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    new_value: {
+    newValue: {
       type: DataTypes.TEXT,
       allowNull: true,
     }
   }, {
-    tableName: "ticket_history",
+    tableName: "ticket_histories",
     timestamps: true,
-    createdAt: "created_at",
     updatedAt: false
   });
 

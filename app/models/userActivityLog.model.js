@@ -4,18 +4,17 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    ip_address: {
+    ipAddress: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    user_agent: {
+    userAgent: {
       type: DataTypes.STRING,
       allowNull: true,
     },
   }, {
     tableName: "user_activity_logs",
     timestamps: true,
-    createdAt: "created_at",
     updatedAt: false
   });
 

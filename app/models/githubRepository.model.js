@@ -1,18 +1,16 @@
 module.exports = (sequelize, Sequelize, DataTypes) => {
   const GithubRepository = sequelize.define("github_repository",{
-    repo_url: {
+    repoURL: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    repo_name: {
+    repoName: {
       type: DataTypes.STRING,
       allowNull: false,
     }
   }, {
     tableName: "github_repositories",
-    timestamps: true,
-    createdAt: "created_at",
-    updatedAt: "updated_at"
+    timestamps: true
   });
 
   return GithubRepository;

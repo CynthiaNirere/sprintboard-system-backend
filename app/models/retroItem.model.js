@@ -1,6 +1,6 @@
 module.exports = (sequelize, Sequelize, DataTypes) => {
   const RetroItem = sequelize.define("retro_item", {
-    item_type: {
+    itemType: {
       type: DataTypes.ENUM('WHAT_WENT_WELL', 'WHAT_DID_NOT_GO_WELL', 'NEEDS_IMPROVEMENT'),
       allowNull: false,
     },
@@ -10,9 +10,7 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
     }
   }, {
     tableName: "retro_items",
-    timestamps: true,
-    createdAt: "created_at",
-    updatedAt: "updated_at"
+    timestamps: true
   });
 
   return RetroItem;

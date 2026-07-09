@@ -1,17 +1,17 @@
 module.exports = (sequelize, Sequelize, DataTypes) => {
   const Attachment = sequelize.define("attachment", {
-    file_url: {
+    fileURL: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    file_name: {
+    fileName: {
       type: DataTypes.STRING,
       allowNull: false,
     }
   }, {
     tableName: "attachments",
     timestamps: true,
-    createdAt: "uploaded_at",
+    createdAt: "uploadedAt",
     updatedAt: false
   });
 

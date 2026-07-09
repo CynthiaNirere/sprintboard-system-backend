@@ -4,6 +4,14 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
   const User = sequelize.define("user", {
     username: {
       type: DataTypes.STRING,
+      allowNull: true,
+    },
+    firstName: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    lastName: {
+      type: DataTypes.STRING,
       allowNull: false,
     },
     password: {
@@ -19,24 +27,18 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
       type: DataTypes.BLOB,
       allowNull: false,
     },
-    session: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    global_role: {
+    globalRole: {
       type: DataTypes.ENUM('ADMIN', 'USER'),
       allowNull: false,
       defaultValue: 'USER',
     },
-    github_account: {
+    githubAccount: {
       type: DataTypes.INTEGER,
       allowNull: true,
     }
   }, {
     tableName: "users",
-    timestamps: true,
-    createdAt: "created_at",
-    updatedAt: "updated_at"
+    timestamps: true
   });
 
   return User;

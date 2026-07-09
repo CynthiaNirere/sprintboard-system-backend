@@ -16,23 +16,21 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
       type: DataTypes.ENUM('LOW', 'MEDIUM', 'HIGH'),
       allowNull: false,
     },
-    story_points: {
+    storyPoints: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
-    github_branch_name: {
+    githubBranchName: {
       type: DataTypes.STRING,
       allowNull: true,
     },
-    github_pr_url: {
+    githubPrURL: {
       type: DataTypes.STRING,
       allowNull: true,
     },
   }, {
     tableName: "tickets",
-    timestamps: true,
-    createdAt: "created_at",
-    updatedAt: "updated_at"
+    timestamps: true
   });
 
   return Ticket;

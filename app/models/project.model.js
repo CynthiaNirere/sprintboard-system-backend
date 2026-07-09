@@ -10,9 +10,7 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
     }
   }, {
     tableName: "projects",
-    timestamps: true,
-    createdAt: "created_at",
-    updatedAt: "updated_at"
+    timestamps: true
   });
 
   return Project;

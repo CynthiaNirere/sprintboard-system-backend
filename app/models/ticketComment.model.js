@@ -7,7 +7,6 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
   }, {
     tableName: "ticket_comments",
     timestamps: true,
-    createdAt: "created_at",
     updatedAt: false
   });
 
