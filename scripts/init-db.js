@@ -72,7 +72,7 @@ const run = async () => {
       },
     ]);
 
-    console.log("Seeding board statuses...")
+    console.log("Seeding board statuses...");
     await db.boardStatus.bulkCreate([
       {
         name: "No Status",
@@ -101,7 +101,19 @@ const run = async () => {
       },
     ]);
 
-    console.log("Seeding user sessions...")
+    console.log("Seeding sprints...");
+    const today = new Date();
+    const twoWeeksFromToday = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+    const seedSprint = await db.sprint.create({
+      name: "Seeded Sprint 1",
+      startDate: today,
+      endDate: twoWeeksFromToday,
+      isActive: true,
+      projectId: seedProject.id
+    });
+
+    console.log("Seeding user sessions...");
     const adminSession = await db.session.create({
       email: adminUser.email,
       userId: adminUser.id,
@@ -125,6 +137,7 @@ const run = async () => {
       projectAdminUserId: projectAdminUser.id,
       userId: user.id,
       projectId: seedProject.id,
+      sprintId: seedSprint.id,
       adminSessionId: adminSession.id,
       projectAdminSessionId: projectAdminSession.id,
       userSessionId: userSession.id,
