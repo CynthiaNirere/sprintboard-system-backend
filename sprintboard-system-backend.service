@@ -1,0 +1,14 @@
+[Unit]
+Description=NodeJS sprintboard-system-backend
+After=network.target
+ 
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/nodeapps/sprintboard-system-backend/
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+ 
+[Install]
+WantedBy=multi-user.target
+
