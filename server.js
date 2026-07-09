@@ -38,18 +38,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // simple route
 app.get("/", (req, res) => {
-  res.json({ message: "Welcome to the ticketing backend." });
+  res.json({ message: "Welcome to the sprintboard backend." });
 });
 
 require("./app/routes/auth.routes.js")(app);
 require("./app/routes/user.routes")(app);
-require("./app/routes/show.routes.js")(app);
-require("./app/routes/event.routes.js")(app);
-require("./app/routes/dashboard.routes.js")(app);
-require("./app/routes/seat.routes.js")(app);
-require("./app/routes/ticket.routes.js")(app);
-require("./app/routes/refund.routes.js")(app);
-require("./app/routes/order.routes.js")(app);
 require("./app/routes/sprint.routes.js")(app);
 
 // set port, listen for requests

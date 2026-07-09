@@ -1,41 +1,44 @@
 const { saltSize, keySize } = require("../authentication/crypto");
 
-module.exports = (sequelize, Sequelize) => {
+module.exports = (sequelize, Sequelize, DataTypes) => {
   const User = sequelize.define("user", {
+    username: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     firstName: {
-      type: Sequelize.STRING,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     lastName: {
-      type: Sequelize.STRING,
-      allowNull: false,
-    },
-    email: {
-      type: Sequelize.STRING,
+      type: DataTypes.STRING,
       allowNull: false,
     },
     password: {
-      type: Sequelize.BLOB,
+      type: DataTypes.BLOB,
       allowNull: false,
+    },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
     },
     salt: {
-      type: Sequelize.BLOB,
+      type: DataTypes.BLOB,
       allowNull: false,
     },
-    phoneNumber:{
-      type: Sequelize.STRING(255),
-      allowNull:true,
+    globalRole: {
+      type: DataTypes.ENUM('ADMIN', 'USER'),
+      allowNull: false,
+      defaultValue: 'USER',
     },
-    dateCreated: {
-      type: Sequelize.DATE,
+    githubAccount: {
+      type: DataTypes.INTEGER,
       allowNull: true,
-    },
-    userType: {
-      type: Sequelize.ENUM('admin', 'customer'),
-      allowNull: true,
-      defaultValue: 'customer',
-    },
-
+    }
+  }, {
+    tableName: "users",
+    timestamps: true
   });
 
   return User;
