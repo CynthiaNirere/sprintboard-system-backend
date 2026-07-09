@@ -1,22 +1,25 @@
-module.exports = (sequelize, Sequelize, DataTypes) => {
+module.exports = (sequelize, Sequelize) => {
   const Sprint = sequelize.define("sprint", {
     name: {
-      type: DataTypes.STRING,
+      type: Sequelize.STRING,
       allowNull: false,
     },
-    start_date: {
-      type: DataTypes.DATE,
+    startDate: {
+      type: Sequelize.DATEONLY,
       allowNull: false,
+      field: "start_date",
     },
-    end_date: {
-      type: DataTypes.DATE,
+    endDate: {
+      type: Sequelize.DATEONLY,
       allowNull: false,
+      field: "end_date",
     },
-    is_active: {
-      type: DataTypes.BOOLEAN,
+    isActive: {
+      type: Sequelize.BOOLEAN,
       allowNull: false,
       defaultValue: false,
-    }
+      field: "is_active",
+    },
   }, {
     tableName: "sprints",
     timestamps: true,

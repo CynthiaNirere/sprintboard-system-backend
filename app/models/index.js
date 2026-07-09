@@ -1,5 +1,5 @@
 const dbConfig = require("../config/db.config.js");
-const {Sequelize, DataTypes, Model} = require("sequelize");
+const { Sequelize, DataTypes, Model } = require("sequelize");
 const sequelize = new Sequelize(dbConfig.DB, dbConfig.USER, dbConfig.PASSWORD, {
   host: dbConfig.HOST,
   dialect: dbConfig.dialect,
@@ -29,6 +29,12 @@ db.githubRepository = require("./githubRepository.model.js")(sequelize, Sequeliz
 db.ticketComment = require("./ticketComment.model.js")(sequelize, Sequelize);
 db.attachment = require("./attachment.model.js")(sequelize, Sequelize);
 
+// foreign keys for sprint
+db.project.hasMany(db.sprint, {
+  as: "sprints",
+  foreignKey: { name: "projectId", field: "project_id", allowNull: false },
+    onDelete: "CASCADE",
+});
 // foreign keys for project
 db.user.hasMany(db.project, {
   as: "createdProjects",
@@ -37,6 +43,11 @@ db.user.hasMany(db.project, {
     allowNull: false
   },
 });
+db.sprint.belongsTo(db.project, {
+  as: "project",
+  foreignKey: { name: "projectId", field: "project_id", allowNull: false },
+   onDelete: "CASCADE",
+});
 db.project.belongsTo(db.user, {
   as: "creator",
   foreignKey: {
@@ -44,51 +55,10 @@ db.project.belongsTo(db.user, {
     allowNull: false,
   },
 });
-db.githubRepository.hasMany(db.project, {
-  as: "githubRepositoryProjects",
-  foreignKey: {
-    name: "repo_id",
-    allowNull: true,
-  },
-});
-db.project.belongsTo(db.githubRepository, {
-  as: "githubRepository",
-  foreignKey: {
-    name: "repo_id",
-    allowNull: true,
-  },
-});
-
-// foreign keys for sprint
-db.project.hasMany(db.sprint, {
-  as: "projectSprints",
-  foreignKey: {
-    name: "project_id",
-    allowNull: false,
-  },
-});
 db.sprint.belongsTo(db.project, {
   as: "project",
-  foreignKey: {
-    name: "project_id",
-    allowNull: false,
-  },
-});
-
-// foreign keys for boardStatus
-db.project.hasMany(db.boardStatus, {
-  as: "projectBoardStatuses",
-  foreignKey: {
-    name: "project_id",
-    allowNull: false,
-  },
-});
-db.boardStatus.belongsTo(db.project, {
-  as: "project",
-  foreignKey: {
-    name: "project_id",
-    allowNull: false,
-  },
+  foreignKey: { name: "projectId", field: "project_id", allowNull: false },
+  onDelete: "CASCADE",
 });
 
 // foreign keys for ticket
