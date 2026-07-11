@@ -1,10 +1,10 @@
 module.exports = (sequelize, Sequelize, DataTypes) => {
   const GithubRepository = sequelize.define("github_repository",{
-    repoURL: {
+    url: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    repoName: {
+    name: {
       type: DataTypes.STRING,
       allowNull: false,
     }
