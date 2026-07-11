@@ -7,22 +7,22 @@ const { encrypt, getSalt, hashPassword } = require("../authentication/crypto");
 // Create and Save a new User
 exports.create = async (req, res) => {
   // Validate request
-  if (req.body.firstName === undefined) {
-    const error = new Error("First name cannot be empty for user!");
-    error.statusCode = 400;
-    throw error;
-  } else if (req.body.lastName === undefined) {
-    const error = new Error("Last name cannot be empty for user!");
-    error.statusCode = 400;
-    throw error;
-  } else if (req.body.email === undefined) {
-    const error = new Error("Email cannot be empty for user!");
-    error.statusCode = 400;
-    throw error;
-  } else if (req.body.password === undefined) {
-    const error = new Error("Password cannot be empty for user!");
-    error.statusCode = 400;
-    throw error;
+  if (!req.body.firstName) {
+    return res.status(400).send({
+      message: "First name cannot be empty for user!"
+    });
+  } else if (!req.body.lastName) {
+    return res.status(400).send({
+      message: "Last name cannot be empty for user!"
+    });
+  } else if (!req.body.email) {
+    return res.status(400).send({
+      message: "Email cannot be empty for user!"
+    });
+  } else if (!req.body.password) {
+    return res.status(400).send({
+      message: "Password cannot be empty for user!"
+    });
   }
 
   try {
@@ -33,7 +33,7 @@ exports.create = async (req, res) => {
     });
 
     if (data) {
-      return "This email is already in use.";
+      return res.status(400).send({ message: "This email is already in use." });
     }
 
     console.log("email not found");
@@ -44,12 +44,14 @@ exports.create = async (req, res) => {
     // Create a User
     const user = {
       id: req.body.id,
+      username: req.body.username || null,
       firstName: req.body.firstName,
       lastName: req.body.lastName,
       email: req.body.email,
-      phoneNumber: req.body.phoneNumber ? req.body.phoneNumber.replace(/\D/g, '') : null,
       password: hash,
       salt: salt,
+      globalRole: req.body.globalRole || 'USER',
+      githubAccount: req.body.githubAccount || null,
     };
 
     try {
@@ -64,16 +66,20 @@ exports.create = async (req, res) => {
         userId: userId,
         expirationDate: expireTime,
       };
+
       const sessionData = await Session.create(session);
       let sessionId = sessionData.id;
       let token = await encrypt(sessionId);
+
       let userInfo = {
-        email: user.email,
+        id: user.id,
+        username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
-        id: user.id,
+        email: user.email,
+        githubAccount: user.githubAccount,
+        globalRole: user.globalRole,
         token: token,
-        userType: user.userType,
       };
       res.send(userInfo);
     } catch (err) {
@@ -83,7 +89,9 @@ exports.create = async (req, res) => {
       });
     }
   } catch (err) {
-    return err.message || "Error retrieving User with email=" + req.body.email;
+    res.status(500).send({
+      message: err.message || "Error retrieving User with email=" + req.body.email
+    });
   }
 };
 
@@ -138,10 +146,7 @@ exports.findByEmail = async (req, res) => {
     if (data) {
       res.send(data);
     } else {
-      res.send({ email: "not found" });
-      /*res.status(404).send({
-        message: `Cannot find User with email=${email}.`
-      });*/
+      res.status(404).send({ message: "not found" });
     }
   } catch (err) {
     res.status(500).send({
@@ -154,8 +159,8 @@ exports.findByEmail = async (req, res) => {
 exports.update = async (req, res) => {
   const id = req.params.id;
 
-  const { firstName, lastName, email, phoneNumber, userType } = req.body;
-  const updateData = { firstName, lastName, email, phoneNumber, userType };
+  const { username, firstName, lastName, email, githubAccount, globalRole } = req.body;
+  const updateData = { username, firstName, lastName, email, githubAccount, globalRole };
   Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
 
   try {

@@ -23,108 +23,157 @@ const run = async () => {
     const salt = await getSalt();
     const passwordHash = await hashPassword("Test1234!", salt);
 
+    console.log("Seeding users...");
+    const adminUser = await db.user.create({
+      firstName: "Admin",
+      lastName: "User",
+      email: "test.admin@example.com", 
+      password: passwordHash,
+      salt: salt,
+      globalRole: "ADMIN",
+    });
+
+    const projectAdminUser = await db.user.create({
+      firstName: "Project",
+      lastName: "Admin",
+      email: "test.projectadmin@example.com", 
+      password: passwordHash,
+      salt: salt,
+      globalRole: "USER",
+    });
+
     const user = await db.user.create({
       firstName: "Test",
       lastName: "User",
-      email: "test@example.com",
+      email: "test.user@example.com", 
       password: passwordHash,
       salt: salt,
+      globalRole: "USER",
     });
 
-    const ingredient1 = await db.ingredient.create({
-      name: "Flour",
-      unit: "cups",
-      pricePerUnit: 2.5,
+    console.log("Seeding project...");
+    const seedProject = await db.project.create({
+      name: "Test Project",
+      description: "Initial seeded project from init DB",
+      createdBy: adminUser.id
     });
 
-    const ingredient2 = await db.ingredient.create({
-      name: "Sugar",
-      unit: "cups",
-      pricePerUnit: 1.75,
+    console.log("Seeding project members...");
+    await db.projectMember.bulkCreate([
+      {
+        userId: projectAdminUser.id,
+        projectId: seedProject.id,
+        projectRole: "PROJECT_ADMIN",
+      },
+      {
+        userId: user.id,
+        projectId: seedProject.id,
+        projectRole: "DEVELOPER",
+      },
+    ]);
+
+    console.log("Seeding board statuses...");
+    await db.boardStatus.bulkCreate([
+      {
+        name: "No Status",
+        columnOrder: 1,
+        projectId: seedProject.id
+      },
+      {
+        name: "In Progress",
+        columnOrder: 2,
+        projectId: seedProject.id
+      },
+      {
+        name: "Ready for Test",
+        columnOrder: 3,
+        projectId: seedProject.id
+      },
+      {
+        name: "In Test",
+        columnOrder: 4,
+        projectId: seedProject.id
+      },
+      {
+        name: "Done",
+        columnOrder: 5,
+        projectId: seedProject.id
+      },
+    ]);
+
+    console.log("Seeding sprints...");
+    const today = new Date();
+    const twoWeeksFromToday = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+    const seedSprint = await db.sprint.create({
+      name: "Seeded Sprint 1",
+      startDate: today,
+      endDate: twoWeeksFromToday,
+      isActive: true,
+      projectId: seedProject.id
     });
 
-    const recipe = await db.recipe.create({
-      name: "Pancakes",
-      description: "A simple pancake recipe",
-      servings: 4,
-      time: 20,
-      isPublished: true,
-      userId: user.id,
+    console.log("Seeding user sessions...");
+    const adminSession = await db.session.create({
+      email: adminUser.email,
+      userId: adminUser.id,
+      expirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
-    const step1 = await db.recipeStep.create({
-      stepNumber: 1,
-      instruction: "Mix flour and sugar.",
-      recipeId: recipe.id,
+    const projectAdminSession = await db.session.create({
+      email: projectAdminUser.email,
+      userId: projectAdminUser.id,
+      expirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
-    const step2 = await db.recipeStep.create({
-      stepNumber: 2,
-      instruction: "Cook on a hot skillet until golden.",
-      recipeId: recipe.id,
-    });
-
-    const recipeIngredient = await db.recipeIngredient.create({
-      quantity: 2,
-      recipeId: recipe.id,
-      recipeStepId: step1.id,
-      ingredientId: ingredient1.id,
-    });
-
-    const recipeIngredientWithoutStep = await db.recipeIngredient.create({
-      quantity: 1,
-      recipeId: recipe.id,
-      recipeStepId: null,
-      ingredientId: ingredient2.id,
-    });
-
-    const session = await db.session.create({
+    const userSession = await db.session.create({
       email: user.email,
       userId: user.id,
       expirationDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
     console.log("Seed data created:", {
+      adminId: adminUser.id,
+      projectAdminUserId: projectAdminUser.id,
       userId: user.id,
-      ingredient1Id: ingredient1.id,
-      ingredient2Id: ingredient2.id,
-      recipeId: recipe.id,
-      step1Id: step1.id,
-      step2Id: step2.id,
-      recipeIngredientId: recipeIngredient.id,
-      sessionId: session.id,
+      projectId: seedProject.id,
+      sprintId: seedSprint.id,
+      adminSessionId: adminSession.id,
+      projectAdminSessionId: projectAdminSession.id,
+      userSessionId: userSession.id,
     });
 
-    const foundRecipe = await db.recipe.findByPk(recipe.id, {
+    const foundProject = await db.project.findByPk(seedProject.id, {
       include: [
         {
-          model: db.recipeStep,
-          as: "recipeStep",
+          model: db.boardStatus,
+          as: "projectBoardStatuses",
         },
       ],
     });
-    console.log("Found recipe with steps:", {
-      id: foundRecipe.id,
-      name: foundRecipe.name,
-      stepCount: foundRecipe.recipeStep.length,
+
+    console.log("Found project with statuses:", {
+      id: foundProject.id,
+      name: foundProject.name,
+      statusCount: foundProject.projectBoardStatuses.length,
     });
 
-    await db.recipe.update(
-      { name: "Pancakes Deluxe" },
-      { where: { id: recipe.id } }
+    await db.project.update(
+      { name: "Seeded Project" },
+      { where: { id: seedProject.id } }
     );
-    const updatedRecipe = await db.recipe.findByPk(recipe.id);
-    console.log("Updated recipe name:", updatedRecipe.name);
+    const updatedProject = await db.project.findByPk(seedProject.id);
+    console.log("Updated project name:", updatedProject.name);
 
-    await db.recipeStep.destroy({ where: { id: step2.id } });
-    const deletedStep = await db.recipeStep.findByPk(step2.id);
-    console.log("Deleted recipe step 2 exists?", !!deletedStep);
+    await db.session.destroy({ where: { id: userSession.id } });
+    const deletedSession = await db.session.findByPk(userSession.id);
+    console.log("Deleted session exists?", !!deletedSession);
 
-    const foundSession = await db.session.findByPk(session.id);
+    const foundAdminSession = await db.session.findByPk(adminSession.id);
     console.log("Found session:", {
-      id: foundSession.id,
-      userId: foundSession.userId,
-      expirationDate: foundSession.expirationDate,
+      id: foundAdminSession.id,
+      adminId: foundAdminSession.userId,
+      expirationDate: foundAdminSession.expirationDate,
     });
 
     console.log("Init + CRUD verification complete.");
