@@ -31,7 +31,7 @@ exports.login = async (req, res) => {
         email: user.email,
         githubAccount: user.githubAccount,
         globalRole: user.globalRole,
-        token: token,
+        token: token
       };
       res.send(userInfo);
     } catch (err) {
@@ -59,5 +59,4 @@ exports.logout = async (req, res) => {
       return res.status(500).send({ message: "Error logging out." });
     }
   }
-  return res.send({ message: "No active session." });
 };
