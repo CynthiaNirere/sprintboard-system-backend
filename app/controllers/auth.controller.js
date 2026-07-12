@@ -24,12 +24,14 @@ exports.login = async (req, res) => {
       let sessionId = data.id;
       let token = await encrypt(sessionId);
       let userInfo = {
-        email: user.email,
+        id: user.id,
+        username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
-        id: user.id,
-        token: token,
-        userType: user.userType,
+        email: user.email,
+        githubAccount: user.githubAccount,
+        globalRole: user.globalRole,
+        token: token
       };
       res.send(userInfo);
     } catch (err) {
