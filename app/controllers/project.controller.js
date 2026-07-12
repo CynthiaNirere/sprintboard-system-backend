@@ -16,7 +16,6 @@ exports.create = async (req, res) => {
     name: req.body.name,
     description: req.body.description,
     createdBy: req.userId,
-    repoId: req.body.repoId ?? null,
   };
 
   try {
@@ -56,10 +55,10 @@ exports.findAll = async (req, res) => {
           as: "projectBoardStatuses",
           attributes: ["name", "columnOrder"],
         },
-        {
-          model: db.githubRepository,
-          as: "githubRepository",
-          attributes: ["repoName"],
+       {
+        model: db.githubRepository,
+        as: "projectRepositories",
+        attributes: ["id", "name", "url"],
         },
       ],
       order: [["name", "ASC"]],
@@ -79,9 +78,9 @@ exports.findOne = async (req, res) => {
     const data = await Project.findByPk(id, {
       include: [
         { model: db.boardStatus, as: "projectBoardStatuses", attributes: ["name", "columnOrder"] },
-        { model: db.githubRepository, as: "githubRepository", attributes: ["repoName"] },
-      ],
-    });
+        { model: db.githubRepository, as: "projectRepositories", attributes: ["id", "repoName"] },
+        ],
+            });
     res.send(data);
   } catch (err) {
     res.status(500).send({
