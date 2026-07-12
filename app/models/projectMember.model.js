@@ -1,7 +1,7 @@
 module.exports = (sequelize, Sequelize, DataTypes) => {
   const ProjectMember = sequelize.define("project_member", {
     projectRole: {
-      type: DataTypes.ENUM('PROJECT_ADMIN', 'DEVELOPER', 'QA_TESTER'),
+      type: DataTypes.ENUM('PROJECT_ADMIN', 'DEVELOPER', 'QA'),
       allowNull: false,
     }
   }, {

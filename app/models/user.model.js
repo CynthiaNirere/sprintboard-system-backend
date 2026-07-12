@@ -33,7 +33,7 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
       defaultValue: 'USER',
     },
     githubAccount: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING,
       allowNull: true,
     }
   }, {

@@ -21,12 +21,13 @@ db.sprint = require("./sprint.model.js")(sequelize, Sequelize, DataTypes);
 db.boardStatus = require("./boardStatus.model.js")(sequelize, Sequelize, DataTypes);
 db.ticket = require("./ticket.model.js")(sequelize, Sequelize, DataTypes);
 db.test = require("./test.model.js")(sequelize, Sequelize, DataTypes);
+db.testHistory = require("./testHistory.model.js")(sequelize, Sequelize, DataTypes);
 db.ticketHistory = require("./ticketHistory.model.js")(sequelize, Sequelize, DataTypes);
 db.retrospective = require("./retrospective.model.js")(sequelize, Sequelize, DataTypes);
 db.retroItem = require("./retroItem.model.js")(sequelize, Sequelize, DataTypes);
 db.userActivityLog = require("./userActivityLog.model.js")(sequelize, Sequelize, DataTypes);
 db.githubRepository = require("./githubRepository.model.js")(sequelize, Sequelize, DataTypes);
-db.ticketComment = require("./ticketComment.model.js")(sequelize, Sequelize, DataTypes);
+db.comment = require("./comment.model.js")(sequelize, Sequelize, DataTypes);
 db.attachment = require("./attachment.model.js")(sequelize, Sequelize, DataTypes);
 db.session = require("./session.model.js")(sequelize, Sequelize, DataTypes);
 
@@ -63,18 +64,20 @@ db.project.belongsTo(db.user, {
     allowNull: false,
   },
 });
-db.githubRepository.hasMany(db.project, {
-  as: "githubRepositoryProjects",
+
+// foreign keys for githubRepository
+db.project.hasMany(db.githubRepository, {
+  as: "projectRepositories",
   foreignKey: {
-    name: "repoId",
-    allowNull: true,
+    name: "projectId",
+    allowNull: false,
   },
 });
-db.project.belongsTo(db.githubRepository, {
-  as: "githubRepository",
+db.githubRepository.belongsTo(db.project, {
+  as: "project",
   foreignKey: {
-    name: "repoId",
-    allowNull: true,
+    name: "projectId",
+    allowNull: false,
   },
 });
 
@@ -151,6 +154,20 @@ db.ticket.belongsTo(db.boardStatus, {
     allowNull: false,
   },
 });
+db.githubRepository.hasMany(db.ticket, {
+  as: "githubRepositoryTickets",
+  foreignKey: {
+    name: "repoId",
+    allowNull: true,
+  },
+});
+db.ticket.belongsTo(db.githubRepository, {
+  as: "githubRepository",
+  foreignKey: {
+    name: "repoId",
+    allowNull: true,
+  },
+});
 
 // foreign keys for test
 db.user.hasMany(db.test, {
@@ -211,6 +228,38 @@ db.ticketHistory.belongsTo(db.ticket, {
   as: "ticket",
   foreignKey: {
     name: "ticketId",
+    allowNull: false,
+  },
+  onDelete: "CASCADE",
+});
+
+// foreign keys for testHistory
+db.user.hasMany(db.testHistory, {
+  as: "userTestHistoryEntries",
+  foreignKey: {
+    name: "userId",
+    allowNull: false,
+  },
+});
+db.testHistory.belongsTo(db.user, {
+  as: "user",
+  foreignKey: {
+    name: "userId",
+    allowNull: false,
+  },
+});
+db.test.hasMany(db.testHistory, {
+  as: "testHistoryEntries",
+  foreignKey: {
+    name: "testId",
+    allowNull: false,
+  },
+  onDelete: "CASCADE",
+});
+db.testHistory.belongsTo(db.test, {
+  as: "test",
+  foreignKey: {
+    name: "testId",
     allowNull: false,
   },
   onDelete: "CASCADE",
@@ -280,22 +329,22 @@ db.userActivityLog.belongsTo(db.user, {
   },
 });
 
-// foreign keys for ticketComment
-db.user.hasMany(db.ticketComment, {
-  as: "userTicketComments",
+// foreign keys for comment
+db.user.hasMany(db.comment, {
+  as: "userComments",
   foreignKey: {
     name: "userId",
     allowNull: false,
   },
 });
-db.ticketComment.belongsTo(db.user, {
+db.comment.belongsTo(db.user, {
   as: "user",
   foreignKey: {
     name: "userId",
     allowNull: false,
   },
 });
-db.ticket.hasMany(db.ticketComment, {
+db.ticket.hasMany(db.comment, {
   as: "ticketComments",
   foreignKey: {
     name: "ticketId",
@@ -303,7 +352,7 @@ db.ticket.hasMany(db.ticketComment, {
   },
   onDelete: "CASCADE",
 });
-db.ticketComment.belongsTo(db.ticket, {
+db.comment.belongsTo(db.ticket, {
   as: "ticket",
   foreignKey: {
     name: "ticketId",
@@ -311,7 +360,7 @@ db.ticketComment.belongsTo(db.ticket, {
   },
   onDelete: "CASCADE",
 });
-db.test.hasMany(db.ticketComment, {
+db.test.hasMany(db.comment, {
   as: "testComments",
   foreignKey: {
     name: "testId",
@@ -319,7 +368,7 @@ db.test.hasMany(db.ticketComment, {
   },
   onDelete: "CASCADE",
 });
-db.ticketComment.belongsTo(db.test, {
+db.comment.belongsTo(db.test, {
   as: "test",
   foreignKey: {
     name: "testId",

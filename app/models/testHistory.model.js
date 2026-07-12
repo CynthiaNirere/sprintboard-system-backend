@@ -1,14 +1,14 @@
 module.exports = (sequelize, Sequelize, DataTypes) => {
-  const TicketComment = sequelize.define("ticket_comment", {
-    content: {
+  const TestHistory = sequelize.define("test_history", {
+    message: {
       type: DataTypes.TEXT,
       allowNull: false,
-    },
+    }
   }, {
-    tableName: "ticket_comments",
+    tableName: "test_histories",
     timestamps: true,
     updatedAt: false
   });
 
-  return TicketComment;
+  return TestHistory;
 };

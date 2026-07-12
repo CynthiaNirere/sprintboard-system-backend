@@ -9,7 +9,7 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
       allowNull: true,
     },
     type: {
-      type: DataTypes.ENUM('TASK', 'NEW FEATURE', 'ENHANCEMENT', 'BUG'),
+      type: DataTypes.ENUM('FEATURE', 'ENHANCEMENT', 'BUG'),
       allowNull: false,
     },
     priority: {
@@ -19,6 +19,12 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
     storyPoints: {
       type: DataTypes.INTEGER,
       allowNull: true,
+      validate: {
+        isIn: {
+          args: [[0, 1, 2, 3, 5, 8, 13, 21, 34, 55]],
+          msg: "Story points must be a valid Fibonacci number!"
+        }
+      }
     },
     githubBranchName: {
       type: DataTypes.STRING,
@@ -28,6 +34,10 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true,
     },
+    githubIssueNumber: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    }
   }, {
     tableName: "tickets",
     timestamps: true
