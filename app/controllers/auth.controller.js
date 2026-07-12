@@ -24,12 +24,14 @@ exports.login = async (req, res) => {
       let sessionId = data.id;
       let token = await encrypt(sessionId);
       let userInfo = {
-        email: user.email,
+        id: user.id,
+        username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
-        id: user.id,
+        email: user.email,
+        githubAccount: user.githubAccount,
+        globalRole: user.globalRole,
         token: token,
-        userType: user.userType,
       };
       res.send(userInfo);
     } catch (err) {
@@ -43,19 +45,19 @@ exports.login = async (req, res) => {
 
 exports.logout = async (req, res) => {
   let auth = req.get("authorization");
-  console.log(auth);
-  if (
-    auth != null &&
-    auth.startsWith("Bearer ") &&
-    (typeof require !== "string" || require === "token")
-  ) {
+  if (auth != null && auth.startsWith("Bearer ")) {
     let token = auth.slice(7);
     let sessionId = await decrypt(token);
-    if (sessionId == null) return;
+    if (sessionId == null) {
+      return res.send({ message: "Already logged out." });
+    }
     try {
       await Session.destroy({ where: { id: sessionId } });
+      return res.send({ message: "Logged out successfully." });
     } catch (error) {
       console.log(error);
+      return res.status(500).send({ message: "Error logging out." });
     }
   }
+  return res.send({ message: "No active session." });
 };
