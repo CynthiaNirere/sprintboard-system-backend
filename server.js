@@ -45,6 +45,9 @@ require("./app/routes/auth.routes.js")(app);
 require("./app/routes/user.routes")(app);
 require("./app/routes/sprint.routes.js")(app);
 require("./app/routes/project.routes.js")(app);
+require("./app/routes/boardStatus.routes.js")(app);
+require("./app/routes/test.routes.js")(app);
+require("./app/routes/ticket.routes.js")(app);
 
 
 // set port, listen for requests
