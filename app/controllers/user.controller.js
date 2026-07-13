@@ -80,6 +80,7 @@ exports.create = async (req, res) => {
         githubAccount: user.githubAccount,
         globalRole: user.globalRole,
         token: token,
+        sessionExpireDate: session.expirationDate,
       };
       res.send(userInfo);
     } catch (err) {

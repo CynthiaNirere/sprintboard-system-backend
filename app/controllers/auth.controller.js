@@ -31,7 +31,8 @@ exports.login = async (req, res) => {
         email: user.email,
         githubAccount: user.githubAccount,
         globalRole: user.globalRole,
-        token: token
+        token: token,
+        sessionExpireDate: session.expirationDate,
       };
       res.send(userInfo);
     } catch (err) {
