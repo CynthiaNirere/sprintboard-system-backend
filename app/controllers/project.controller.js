@@ -78,7 +78,7 @@ exports.findOne = async (req, res) => {
     const data = await Project.findByPk(id, {
       include: [
         { model: db.boardStatus, as: "projectBoardStatuses", attributes: ["name", "columnOrder"] },
-        { model: db.githubRepository, as: "projectRepositories", attributes: ["id", "repoName"] },
+        { model: db.githubRepository, as: "projectRepositories", attributes: ["id", "name"] },
         ],
             });
     res.send(data);
