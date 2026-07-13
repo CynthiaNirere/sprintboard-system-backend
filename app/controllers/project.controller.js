@@ -16,7 +16,6 @@ exports.create = async (req, res) => {
     name: req.body.name,
     description: req.body.description,
     createdBy: req.userId,
-    repoId: req.body.repoId ?? null,
   };
 
   try {
@@ -30,6 +29,7 @@ exports.create = async (req, res) => {
 };
 
 // Retrieve all Projects
+// Retrieve all Projects (with related info for the project cards)
 exports.findAll = async (req, res) => {
   const name = req.query.name;
   var condition = name
@@ -39,6 +39,28 @@ exports.findAll = async (req, res) => {
   try {
     const data = await Project.findAll({
       where: condition,
+      include: [
+        {
+          model: db.sprint,
+          as: "projectSprints",
+          attributes: ["id", "name", "isActive"],
+        },
+        {
+          model: db.ticket,
+          as: "projectTickets",
+          attributes: ["id"],
+        },
+        {
+          model: db.boardStatus,
+          as: "projectBoardStatuses",
+          attributes: ["name", "columnOrder"],
+        },
+       {
+        model: db.githubRepository,
+        as: "projectRepositories",
+        attributes: ["id", "name", "url"],
+        },
+      ],
       order: [["name", "ASC"]],
     });
     res.send(data);
@@ -52,9 +74,13 @@ exports.findAll = async (req, res) => {
 // Find a single Project with an id
 exports.findOne = async (req, res) => {
   const id = req.params.id;
-
   try {
-    const data = await Project.findByPk(id);
+    const data = await Project.findByPk(id, {
+      include: [
+        { model: db.boardStatus, as: "projectBoardStatuses", attributes: ["name", "columnOrder"] },
+        { model: db.githubRepository, as: "projectRepositories", attributes: ["id", "repoName"] },
+        ],
+            });
     res.send(data);
   } catch (err) {
     res.status(500).send({
