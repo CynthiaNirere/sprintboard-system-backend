@@ -4,7 +4,7 @@ const Session = db.session;
 const Op = db.Sequelize.Op;
 const { encrypt, getSalt, hashPassword } = require("../authentication/crypto");
 
-// Create and Save a new User
+// Create and Save a new User (registration)
 exports.create = async (req, res) => {
   // Validate request
   if (!req.body.firstName) {
@@ -14,6 +14,10 @@ exports.create = async (req, res) => {
   } else if (!req.body.lastName) {
     return res.status(400).send({
       message: "Last name cannot be empty for user!"
+    });
+  } else if (!req.body.username) {
+    return res.status(400).send({
+      message: "Username cannot be empty for user!"
     });
   } else if (!req.body.email) {
     return res.status(400).send({
@@ -36,21 +40,18 @@ exports.create = async (req, res) => {
       return res.status(400).send({ message: "This email is already in use." });
     }
 
-    console.log("email not found");
-
     let salt = await getSalt();
     let hash = await hashPassword(req.body.password, salt);
 
-    // Create a User
+    // Create a User — role is always USER
     const user = {
-      id: req.body.id,
-      username: req.body.username || null,
+      username: req.body.username,
       firstName: req.body.firstName,
       lastName: req.body.lastName,
       email: req.body.email,
       password: hash,
       salt: salt,
-      globalRole: req.body.globalRole || 'USER',
+      globalRole: 'USER',
       githubAccount: req.body.githubAccount || null,
     };
 
@@ -72,13 +73,13 @@ exports.create = async (req, res) => {
       let token = await encrypt(sessionId);
 
       let userInfo = {
-        id: user.id,
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        githubAccount: user.githubAccount,
-        globalRole: user.globalRole,
+        id: createdUser.id,
+        username: createdUser.username,
+        firstName: createdUser.firstName,
+        lastName: createdUser.lastName,
+        email: createdUser.email,
+        githubAccount: createdUser.githubAccount,
+        globalRole: createdUser.globalRole,
         token: token,
       };
       res.send(userInfo);
@@ -118,7 +119,9 @@ exports.findOne = async (req, res) => {
   const id = req.params.id;
 
   try {
-    const data = await User.findByPk(id);
+    const data = await User.findByPk(id, {
+      attributes: { exclude: ["password", "salt"] },
+    });
     if (data) {
       res.send(data);
     } else {
@@ -142,6 +145,7 @@ exports.findByEmail = async (req, res) => {
       where: {
         email: email,
       },
+      attributes: { exclude: ["password", "salt"] },
     });
     if (data) {
       res.send(data);
@@ -207,18 +211,18 @@ exports.delete = async (req, res) => {
   }
 };
 
-// Delete all People from the database.
+// Delete all Users from the database.
 exports.deleteAll = async (req, res) => {
   try {
     const number = await User.destroy({
       where: {},
       truncate: false,
     });
-    res.send({ message: `${number} People were deleted successfully!` });
+    res.send({ message: `${number} Users were deleted successfully!` });
   } catch (err) {
     res.status(500).send({
       message:
-        err.message || "Some error occurred while removing all people.",
+        err.message || "Some error occurred while removing all users.",
     });
   }
 };
