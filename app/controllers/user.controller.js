@@ -1,5 +1,6 @@
 const db = require("../models");
 const User = db.user;
+const Project = db.project;
 const Session = db.session;
 const Op = db.Sequelize.Op;
 const { encrypt, getSalt, hashPassword } = require("../authentication/crypto");
@@ -122,6 +123,7 @@ exports.findOne = async (req, res) => {
   try {
     const data = await User.findByPk(id, {
       attributes: { exclude: ["password", "salt"] },
+      include: [{model: db.project, include: [{model:db.sprint, as: "projectSprints"}]}],
     });
     if (data) {
       res.send(data);
