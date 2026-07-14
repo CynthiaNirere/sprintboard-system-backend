@@ -60,5 +60,4 @@ exports.logout = async (req, res) => {
       return res.status(500).send({ message: "Error logging out." });
     }
   }
-  return res.send({ message: "No active session." });
 };
