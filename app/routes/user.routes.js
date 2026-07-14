@@ -5,22 +5,178 @@ module.exports = (app) => {
   const selfOrAdmin = require("../middleware/selfOrAdmin.js");
   var router = require("express").Router();
 
-  // Create a new User
+  /**
+   * @swagger
+   * tags:
+   *   name: Users
+   *   description: Users
+   */
+
+  /**
+   * @swagger
+   * /users:
+   *   post:
+   *     summary: Register a new user
+   *     description: Public endpoint — no auth required. Auto-logs the new user in and returns a token.
+   *     tags: [Users]
+   *     security: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/UserInput'
+   *     responses:
+   *       200:
+   *         description: User created and logged in.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/LoginResponse'
+   *       400:
+   *         description: Missing required field, or email already in use.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
   router.post("/users/", User.create);
 
-  // Retrieve all Users
-  router.get("/users/",[authenticateRoute, isAdmin], User.findAll);
+  /**
+   * @swagger
+   * /users:
+   *   get:
+   *     summary: Retrieve all users (Admin only)
+   *     description: Supports an `id` query parameter (partial match).
+   *     tags: [Users]
+   *     parameters:
+   *       - in: query
+   *         name: id
+   *         schema:
+   *           type: string
+   *         description: Partial match filter on user id.
+   *     responses:
+   *       200:
+   *         description: Array of users (password/salt excluded).
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/User'
+   *       401:
+   *         description: Not authenticated.
+   *       403:
+   *         description: Admin privileges required.
+   */
+  router.get("/users/", [authenticateRoute, isAdmin], User.findAll);
 
-  // Retrieve a single User with id
-  router.get("/users/:id",[authenticateRoute, selfOrAdmin], User.findOne);
+  /**
+   * @swagger
+   * /users/{id}:
+   *   get:
+   *     summary: Retrieve a single user by id
+   *     description: >
+   *       Callable by the user themselves or an Admin. Includes the user's
+   *       projects, with each project's sprints nested.
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The user.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/User'
+   *       403:
+   *         description: Access denied. Admins or account owners only.
+   *       404:
+   *         description: User not found.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
+  router.get("/users/:id", [authenticateRoute, selfOrAdmin], User.findOne);
 
-  // Update a User with id
+  /**
+   * @swagger
+   * /users/{id}:
+   *   put:
+   *     summary: Update a user by id
+   *     description: >
+   *       Callable by the user themselves or an Admin. Password cannot be
+   *       changed via this route.
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/UserUpdateInput'
+   *     responses:
+   *       200:
+   *         description: User updated (or no matching user / empty body).
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Message'
+   *       403:
+   *         description: Access denied. Admins or account owners only.
+   */
   router.put("/users/:id", [authenticateRoute, selfOrAdmin], User.update);
 
-  // Delete a User with id
+  /**
+   * @swagger
+   * /users/{id}:
+   *   delete:
+   *     summary: Delete a user by id (Admin only)
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: User deleted (or not found).
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Message'
+   *       403:
+   *         description: Admin privileges required.
+   */
   router.delete("/users/:id", [authenticateRoute, isAdmin], User.delete);
 
-  // Delete all User
+  /**
+   * @swagger
+   * /users:
+   *   delete:
+   *     summary: Delete all users (Admin only)
+   *     tags: [Users]
+   *     responses:
+   *       200:
+   *         description: All users deleted.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Message'
+   *       403:
+   *         description: Admin privileges required.
+   */
   router.delete("/users/", [authenticateRoute, isAdmin], User.deleteAll);
 
   app.use("/museumapi", router);

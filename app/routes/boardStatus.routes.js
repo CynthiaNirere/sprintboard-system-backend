@@ -5,25 +5,184 @@ module.exports = (app) => {
 
   var router = require("express").Router();
 
-  // Create a new project
+  /**
+   * @swagger
+   * tags:
+   *   name: Board Statuses
+   *   description: Per-project Kanban board columns
+   */
+
+  /**
+   * @swagger
+   * /boardStatus:
+   *   post:
+   *     summary: Create a new board status (Admin only)
+   *     tags: [Board Statuses]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/BoardStatusInput'
+   *     responses:
+   *       200:
+   *         description: Board status created.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/BoardStatus'
+   *       400:
+   *         description: Missing name, columnOrder, or projectId.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       403:
+   *         description: Admin privileges required.
+   */
   router.post("/boardStatus/", [authenticateRoute, isAdmin], BoardStatus.create);
-0
-  // Retrieve all boardStatus
+
+  /**
+   * @swagger
+   * /boardStatus:
+   *   get:
+   *     summary: Retrieve all board statuses
+   *     tags: [Board Statuses]
+   *     responses:
+   *       200:
+   *         description: Array of board statuses.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/BoardStatus'
+   *       401:
+   *         description: Not authenticated.
+   */
   router.get("/boardStatus/", authenticateRoute, BoardStatus.findAll);
 
-  // Retrieve a single project with id
+  /**
+   * @swagger
+   * /boardStatus/{id}:
+   *   get:
+   *     summary: Retrieve a board status by id
+   *     tags: [Board Statuses]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The board status.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/BoardStatus'
+   *       401:
+   *         description: Not authenticated.
+   */
   router.get("/boardStatus/:id", authenticateRoute, BoardStatus.findOne);
 
-  // Retrieve a single project with id
+  /**
+   * @swagger
+   * /boardStatus/project/{id}:
+   *   get:
+   *     summary: Retrieve board statuses for a project, in column order
+   *     tags: [Board Statuses]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: Project id.
+   *     responses:
+   *       200:
+   *         description: Array of board statuses for the project.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/BoardStatus'
+   *       401:
+   *         description: Not authenticated.
+   */
   router.get("/boardStatus/project/:id", authenticateRoute, BoardStatus.findAllForProject);
 
-  // Update a project with id
+  /**
+   * @swagger
+   * /boardStatus/{id}:
+   *   put:
+   *     summary: Update a board status by id (Admin only)
+   *     tags: [Board Statuses]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/BoardStatusInput'
+   *     responses:
+   *       200:
+   *         description: Board status updated (or not found / empty body).
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Message'
+   *       403:
+   *         description: Admin privileges required.
+   */
   router.put("/boardStatus/:id", [authenticateRoute, isAdmin], BoardStatus.update);
 
-  // Delete a project with id
+  /**
+   * @swagger
+   * /boardStatus/{id}:
+   *   delete:
+   *     summary: Delete a board status by id (Admin only)
+   *     tags: [Board Statuses]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: Board status deleted (or not found).
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Message'
+   *       403:
+   *         description: Admin privileges required.
+   */
   router.delete("/boardStatus/:id", [authenticateRoute, isAdmin], BoardStatus.delete);
 
-  // Delete all boardStatus
+  /**
+   * @swagger
+   * /boardStatus:
+   *   delete:
+   *     summary: Delete all board statuses (Admin only)
+   *     tags: [Board Statuses]
+   *     responses:
+   *       200:
+   *         description: All board statuses deleted.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Message'
+   *       403:
+   *         description: Admin privileges required.
+   */
   router.delete("/boardStatus/", [authenticateRoute, isAdmin], BoardStatus.deleteAll);
 
   app.use("/museumapi", router);
