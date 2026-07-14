@@ -2,6 +2,7 @@ module.exports = (app) => {
   const User = require("../controllers/user.controller.js");
   const { authenticateRoute } = require("../authentication/authentication");
   const isAdmin = require("../middleware/isAdmin");
+  const selfOrAdmin = require("../middleware/selfOrAdmin.js");
   var router = require("express").Router();
 
   // Create a new User
@@ -11,10 +12,10 @@ module.exports = (app) => {
   router.get("/users/",[authenticateRoute, isAdmin], User.findAll);
 
   // Retrieve a single User with id
-  router.get("/users/:id",[authenticateRoute, isAdmin], User.findOne);
+  router.get("/users/:id",[authenticateRoute, selfOrAdmin], User.findOne);
 
   // Update a User with id
-  router.put("/users/:id", [authenticateRoute, isAdmin], User.update);
+  router.put("/users/:id", [authenticateRoute, selfOrAdmin], User.update);
 
   // Delete a User with id
   router.delete("/users/:id", [authenticateRoute, isAdmin], User.delete);
