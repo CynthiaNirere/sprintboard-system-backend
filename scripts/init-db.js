@@ -22,6 +22,8 @@ const run = async () => {
 
     const salt = await getSalt();
     const passwordHash = await hashPassword("Test1234!", salt);
+    const password = await hashPassword("password", salt);
+
 
     console.log("Seeding users...");
     const adminUser = await db.user.create({
@@ -51,24 +53,64 @@ const run = async () => {
       globalRole: "USER",
     });
 
-    console.log("Seeding project...");
-    const seedProject = await db.project.create({
-      name: "Test Project",
-      description: "Initial seeded project from init DB",
-      createdBy: adminUser.id
+    const me = await db.user.create({
+      firstName: "me",
+      lastName: "me",
+      email: "me@gmail.com", 
+      password: password,
+      salt: salt,
+      globalRole: "USER",
     });
+
+    console.log("Seeding project...");
+    const seedProject = await db.project.bulkCreate([
+      {
+      id: 1,
+      name: "Test Project admin",
+      description: "Initial seeded project from admin init DB",
+      createdBy: adminUser.id
+      },
+      {
+      id: 2,
+      name: "Test Project user",
+      description: "Initial seeded project for user from init DB",
+      createdBy: user.id
+      },
+      {
+      id: 3,
+      name: "Test Project me",
+      description: "Initial seeded project for me from init DB",
+      createdBy: me.id
+    },
+    {
+      id: 4,
+      name: "Test Project me 2",
+      description: "Initial seeded project for me from init DB",
+      createdBy: me.id
+    }
+  ]);
 
     console.log("Seeding project members...");
     await db.projectMember.bulkCreate([
       {
         userId: projectAdminUser.id,
-        projectId: seedProject.id,
+        projectId: 1,
         projectRole: "PROJECT_ADMIN",
       },
       {
         userId: user.id,
-        projectId: seedProject.id,
+        projectId: 2,
         projectRole: "DEVELOPER",
+      },
+      {
+        userId: me.id,
+        projectId: 3,
+        projectRole: "PROJECT_ADMIN",
+      },
+      {
+        userId: me.id,
+        projectId: 4,
+        projectRole: "PROJECT_ADMIN",
       },
     ]);
 
@@ -77,41 +119,270 @@ const run = async () => {
       {
         name: "No Status",
         columnOrder: 1,
-        projectId: seedProject.id
+        projectId: 1
       },
       {
         name: "In Progress",
         columnOrder: 2,
-        projectId: seedProject.id
+        projectId: 1
       },
       {
         name: "Ready for Test",
         columnOrder: 3,
-        projectId: seedProject.id
+        projectId: 1
       },
       {
         name: "In Test",
         columnOrder: 4,
-        projectId: seedProject.id
+        projectId: 1
       },
       {
         name: "Done",
         columnOrder: 5,
-        projectId: seedProject.id
+        projectId: 1
+      },
+      {
+        name: "No Status",
+        columnOrder: 1,
+        projectId: 2
+      },
+      {
+        name: "In Progress",
+        columnOrder: 2,
+        projectId: 2
+      },
+      {
+        name: "Ready for Test",
+        columnOrder: 3,
+        projectId: 2
+      },
+      {
+        name: "In Test",
+        columnOrder: 4,
+        projectId: 2
+      },
+      {
+        name: "Done",
+        columnOrder: 5,
+        projectId: 2
+      },
+      {
+        name: "No Status",
+        columnOrder: 1,
+        projectId: 3
+      },
+      {
+        name: "In Progress",
+        columnOrder: 2,
+        projectId: 3
+      },
+      {
+        name: "Ready for Test",
+        columnOrder: 3,
+        projectId: 3
+      },
+      {
+        name: "In Test",
+        columnOrder: 4,
+        projectId: 3
+      },
+      {
+        name: "Done",
+        columnOrder: 5,
+        projectId: 3
+      },
+      {
+        name: "No Status",
+        columnOrder: 1,
+        projectId: 4
+      },
+      {
+        name: "In Progress",
+        columnOrder: 2,
+        projectId: 4
+      },
+      {
+        name: "Ready for Test",
+        columnOrder: 3,
+        projectId: 4
+      },
+      {
+        name: "In Test",
+        columnOrder: 4,
+        projectId: 4
+      },
+      {
+        name: "Done",
+        columnOrder: 5,
+        projectId: 4
       },
     ]);
 
     console.log("Seeding sprints...");
     const today = new Date();
     const twoWeeksFromToday = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-
-    const seedSprint = await db.sprint.create({
+    const fourWeeksFromToday = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    const seedSprint = await db.sprint.bulkCreate([
+      {
       name: "Seeded Sprint 1",
       startDate: today,
       endDate: twoWeeksFromToday,
       isActive: true,
-      projectId: seedProject.id
-    });
+      projectId: 1
+    },
+    {
+      name: "Seeded Sprint 2",
+      startDate: twoWeeksFromToday,
+      endDate: fourWeeksFromToday,
+      isActive: true,
+      projectId: 1
+    },
+    {
+      name: "Seeded Sprint 1",
+      startDate: today,
+      endDate: twoWeeksFromToday,
+      isActive: true,
+      projectId: 2
+    },
+    {
+      name: "Seeded Sprint 2",
+      startDate: twoWeeksFromToday,
+      endDate: fourWeeksFromToday,
+      isActive: true,
+      projectId: 2
+    },
+    {
+      name: "Seeded Sprint 1",
+      startDate: today,
+      endDate: twoWeeksFromToday,
+      isActive: true,
+      projectId: 3
+    },
+    {
+      name: "Seeded Sprint 2",
+      startDate: twoWeeksFromToday,
+      endDate: fourWeeksFromToday,
+      isActive: true,
+      projectId: 3
+    },
+    {
+      name: "Seeded Sprint 1",
+      startDate: today,
+      endDate: twoWeeksFromToday,
+      isActive: true,
+      projectId: 4
+    },
+    {
+      name: "Seeded Sprint 2",
+      startDate: twoWeeksFromToday,
+      endDate: fourWeeksFromToday,
+      isActive: true,
+      projectId: 4
+    },
+  ]);
+
+  await db.ticket.bulkCreate([
+    {
+        "title": "None",
+        "description": "Sample Description",
+        "type": "FEATURE",
+        "priority": "MEDIUM",
+        "storyPoints": 2,
+        "projectId": 1,
+        "sprintId": 1,
+        "statusId": 1,
+    },
+    {
+        "title": "In Progress",
+        "description": "Sample Description",
+        "type": "BUG",
+        "priority": "MEDIUM",
+        "storyPoints": 2,
+        "projectId": 1,
+        "sprintId": 1,
+        "statusId": 2,
+    },
+    {
+        "title": "Ready For Test",
+        "description": "Sample Description",
+        "type": "FEATURE",
+        "priority": "MEDIUM",
+        "storyPoints": 2,
+        "projectId": 1,
+        "sprintId": 1,
+        "statusId": 3,
+    },
+    {
+        "title": "In Test",
+        "description": "Sample Description",
+        "type": "FEATURE",
+        "priority": "MEDIUM",
+        "storyPoints": 2,
+        "projectId": 1,
+        "sprintId": 1,
+        "statusId": 4,
+    },
+    {
+        "title": "Done",
+        "description": "Sample Description",
+        "type": "FEATURE",
+        "priority": "MEDIUM",
+        "storyPoints": 2,
+        "projectId": 1,
+        "sprintId": 1,
+        "statusId": 5,
+    },
+    {
+        "title": "None",
+        "description": "Sample Description",
+        "type": "FEATURE",
+        "priority": "MEDIUM",
+        "storyPoints": 2,
+        "projectId": 3,
+        "sprintId": 5,
+        "statusId": 11,
+    },
+    {
+        "title": "In Progress",
+        "description": "Sample Description",
+        "type": "BUG",
+        "priority": "MEDIUM",
+        "storyPoints": 2,
+        "projectId": 3,
+        "sprintId": 5,
+        "statusId": 12,
+    },
+    {
+        "title": "Ready For Test",
+        "description": "Sample Description",
+        "type": "FEATURE",
+        "priority": "MEDIUM",
+        "storyPoints": 2,
+        "projectId": 3,
+        "sprintId": 5,
+        "statusId": 13,
+    },
+    {
+        "title": "In Test",
+        "description": "Sample Description",
+        "type": "FEATURE",
+        "priority": "MEDIUM",
+        "storyPoints": 2,
+        "projectId": 3,
+        "sprintId": 5,
+        "statusId": 14,
+    },
+    {
+        "title": "Done",
+        "description": "Sample Description",
+        "type": "FEATURE",
+        "priority": "MEDIUM",
+        "storyPoints": 2,
+        "projectId": 3,
+        "sprintId": 5,
+        "statusId": 15,
+    },
+  ]);
 
     console.log("Seeding user sessions...");
     const adminSession = await db.session.create({
@@ -136,14 +407,14 @@ const run = async () => {
       adminId: adminUser.id,
       projectAdminUserId: projectAdminUser.id,
       userId: user.id,
-      projectId: seedProject.id,
-      sprintId: seedSprint.id,
+      projectId: 1,
+      sprintId: 1,
       adminSessionId: adminSession.id,
       projectAdminSessionId: projectAdminSession.id,
       userSessionId: userSession.id,
     });
 
-    const foundProject = await db.project.findByPk(seedProject.id, {
+    const foundProject = await db.project.findByPk(1, {
       include: [
         {
           model: db.boardStatus,
@@ -160,9 +431,9 @@ const run = async () => {
 
     await db.project.update(
       { name: "Seeded Project" },
-      { where: { id: seedProject.id } }
+      { where: { id: 1 } }
     );
-    const updatedProject = await db.project.findByPk(seedProject.id);
+    const updatedProject = await db.project.findByPk(1);
     console.log("Updated project name:", updatedProject.name);
 
     await db.session.destroy({ where: { id: userSession.id } });

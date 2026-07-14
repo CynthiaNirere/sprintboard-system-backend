@@ -6,7 +6,7 @@ module.exports = (app) => {
   var router = require("express").Router();
 
   // Create a new ticket
-  router.post("/ticket/", [authenticateRoute, isAdmin], Ticket.create);
+  router.post("/ticket/", authenticateRoute, Ticket.create);
 
   // Retrieve all ticket
   router.get("/ticket/", authenticateRoute, Ticket.findAll);
@@ -21,10 +21,10 @@ module.exports = (app) => {
   router.get("/ticket/:id", authenticateRoute, Ticket.findOne);
 
   // Update a ticket with id
-  router.put("/ticket/:id", [authenticateRoute, isAdmin], Ticket.update);
+  router.put("/ticket/:id", authenticateRoute, Ticket.update);
 
   // Delete a ticket with id
-  router.delete("/ticket/:id", [authenticateRoute, isAdmin], Ticket.delete);
+  router.delete("/ticket/:id", authenticateRoute, Ticket.delete);
 
   // Delete all ticket
   router.delete("/ticket/", [authenticateRoute, isAdmin], Ticket.deleteAll);
