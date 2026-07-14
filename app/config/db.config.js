@@ -1,7 +1,10 @@
 const db_host = process.env.DB_HOST;
 const db_pw = process.env.DB_PW;
 const db_user = process.env.DB_USER;
-const db_name = process.env.DB_NAME;
+const db_name =
+  process.env.NODE_ENV === "test"
+    ? process.env.DB_TEST_NAME || "sprintplanning_test_db"
+    : process.env.DB_NAME;
 
 module.exports = {
   HOST: db_host,
