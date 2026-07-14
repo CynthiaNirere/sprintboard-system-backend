@@ -20,7 +20,9 @@
   "author": "cs",
   "license": "ISC",
   "jest": {
-    "setupFiles": ["dotenv/config"]
+    "setupFiles": [
+      "dotenv/config"
+    ]
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -30,7 +32,9 @@
     "jsonwebtoken": "^9.0.0",
     "mysql2": "^3.2.3",
     "nodemailer": "^9.0.1",
-    "sequelize": "^6.19.0"
+    "sequelize": "^6.19.0",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "jest": "^30.4.2",
