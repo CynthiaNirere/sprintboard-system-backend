@@ -43,4 +43,4 @@ volumes:
   mariadb_data:
 networks:
   jira_network:
-    name: jira_backend_network
+    name: jira_network
