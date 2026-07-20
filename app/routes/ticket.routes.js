@@ -344,4 +344,129 @@ module.exports = (app) => {
   router.put("/ticket/:id/unassign", authenticateRoute, Ticket.removeFromSprint);
   app.use("/sprintboardapi", router);
   app.use("/sprintboardapi", router);
+  /**
+   * @swagger
+   * /ticket/backlog:
+   *   get:
+   *     summary: Retrieve the backlog for a project
+   *     description: Returns all tickets for the given project that are not assigned to any sprint.
+   *     tags: [Tickets]
+   *     parameters:
+   *       - in: query
+   *         name: projectId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: Id of the project whose backlog to fetch.
+   *     responses:
+   *       200:
+   *         description: Array of unassigned tickets ordered by priority.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/Ticket'
+   *       400:
+   *         description: projectId missing.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       401:
+   *         description: Not authenticated.
+   */
+  router.get("/ticket/backlog", authenticateRoute, Ticket.findBacklog);
+
+  /**
+   * @swagger
+   * /ticket/sprint/{sprintId}:
+   *   get:
+   *     summary: Retrieve all tickets in a sprint
+   *     tags: [Tickets]
+   *     parameters:
+   *       - in: path
+   *         name: sprintId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: Id of the sprint.
+   *     responses:
+   *       200:
+   *         description: Array of the sprint's tickets ordered by priority.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/Ticket'
+   *       401:
+   *         description: Not authenticated.
+   */
+  router.get("/ticket/sprint/:sprintId", authenticateRoute, Ticket.findBySprint);
+
+  /**
+   * @swagger
+   * /ticket/{id}/assign:
+   *   put:
+   *     summary: Move a ticket into a sprint
+   *     description: Admin only. Sets the ticket's sprintId, removing it from the backlog.
+   *     tags: [Tickets]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: Id of the ticket to move.
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [sprintId]
+   *             properties:
+   *               sprintId:
+   *                 type: integer
+   *                 example: 3
+   *     responses:
+   *       200:
+   *         description: Ticket moved to the sprint.
+   *       400:
+   *         description: sprintId missing.
+   *       401:
+   *         description: Not authenticated.
+   *       403:
+   *         description: Not an admin.
+   *       500:
+   *         description: Sprint does not exist (foreign key violation).
+   */
+  router.put("/ticket/:id/assign", [authenticateRoute, isAdmin], Ticket.assignToSprint);
+
+  /**
+   * @swagger
+   * /ticket/{id}/unassign:
+   *   put:
+   *     summary: Return a ticket to the backlog
+   *     description: Admin only. Clears the ticket's sprintId.
+   *     tags: [Tickets]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: Id of the ticket to unassign.
+   *     responses:
+   *       200:
+   *         description: Ticket returned to the backlog.
+   *       401:
+   *         description: Not authenticated.
+   *       403:
+   *         description: Not an admin.
+   */
+  router.put("/ticket/:id/unassign", [authenticateRoute, isAdmin], Ticket.removeFromSprint);
+
+  app.use("/museumapi", router);
 };
