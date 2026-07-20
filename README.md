@@ -81,3 +81,8 @@ npm run init-db:wipe
 ```
 npm run start
 ```
+
+8. Using docker to deploy
+
+commands: 
+   docker compose up -d
