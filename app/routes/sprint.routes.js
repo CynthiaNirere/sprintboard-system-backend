@@ -196,5 +196,5 @@ module.exports = (app) => {
    */
   router.delete("/sprints/", [authenticateRoute, isAdmin], Sprint.deleteAll);
 
-  app.use("/museumapi", router);
+  app.use("/sprintboardapi", router);
 };

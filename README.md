@@ -29,7 +29,7 @@ npm install
    - Add the following line as the **last line**:
 
    ```
-   ProxyPass /museumapi http://localhost:3200/museumapi
+   ProxyPass /museumapi http://localhost:3200/sprintboardapi
    ```
 
    - Find the following line and remove the **#** at the front of the line.
