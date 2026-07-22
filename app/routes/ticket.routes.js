@@ -378,4 +378,5 @@ module.exports = (app) => {
   router.put("/ticket/:id/unassign", [authenticateRoute, isAdmin], Ticket.removeFromSprint);
 
   app.use("/sprintboardapi", router);
+  app.use("/sprintboardapi", router);
 };
