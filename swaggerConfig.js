@@ -11,7 +11,7 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:3200/museumapi",
+        url: "http://localhost:3200/sprintboardapi",
         description: "Local development server",
       },
     ],
