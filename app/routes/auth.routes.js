@@ -58,5 +58,5 @@ module.exports = (app) => {
    */
   router.post("/logout", auth.logout);
 
-  app.use("/museumapi", router);
+  app.use("/sprintboardapi", router);
 };
