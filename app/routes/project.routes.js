@@ -97,6 +97,15 @@ module.exports = (app) => {
    */
   router.get("/projects/:id", authenticateRoute, Project.findOne);
 
+  router.get("/projects/:id/members", authenticateRoute, Project.findProjectMembers);
+
+  router.post("/projects/:id/members", [authenticateRoute, isAdmin], Project.addProjectMember);
+
+  router.put("/projects/:id/members", [authenticateRoute, isAdmin], Project.updateProjectMember);
+
+  router.delete("/projects/:id/members/:userId", [authenticateRoute, isAdmin], Project.deleteProjectMember);
+
+
   /**
    * @swagger
    * /projects/{id}:
@@ -169,5 +178,5 @@ module.exports = (app) => {
    */
   router.delete("/projects/", [authenticateRoute, isAdmin], Project.deleteAll);
 
-  app.use("/museumapi", router);
+  app.use("/sprintboardapi", router);
 };
