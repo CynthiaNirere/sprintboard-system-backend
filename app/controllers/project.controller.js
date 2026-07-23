@@ -1,4 +1,5 @@
 const db = require("../models");
+const User = db.user;
 const Project = db.project;
 const ProjectMember = db.projectMember;
 const Op = db.Sequelize.Op;
