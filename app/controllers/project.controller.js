@@ -115,8 +115,29 @@ exports.findUserProjects = async (req, res) => {
           through: {
             attributes: []
           }
-        }
+        },
+        {
+          model: db.sprint,
+          as: "projectSprints",
+          attributes: ["id", "name", "isActive"],
+        },
+        {
+          model: db.ticket,
+          as: "projectTickets",
+          attributes: ["id"],
+        },
+        {
+          model: db.boardStatus,
+          as: "projectBoardStatuses",
+          attributes: ["name", "columnOrder"],
+        },
+        {
+          model: db.githubRepository,
+          as: "projectRepositories",
+          attributes: ["id", "name", "url"],
+        },
       ],
+      order: [["name", "ASC"]],
     });
 
     if (!data) {
