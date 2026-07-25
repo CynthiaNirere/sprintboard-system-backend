@@ -1,6 +1,7 @@
 const db = require("../models");
 const Project = db.project;
 const User = db.user;
+const User = db.user;
 const Op = db.Sequelize.Op;
 
 // Create and Save a Project
