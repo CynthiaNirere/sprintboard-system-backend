@@ -96,6 +96,8 @@ module.exports = (app) => {
    *         description: Not authenticated.
    */
   router.get("/projects/:id", authenticateRoute, Project.findOne);
+  router.get("/projects/user/:userId", authenticateRoute, Project.findUserProjects);
+
 
   /**
    * @swagger
