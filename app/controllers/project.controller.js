@@ -1,5 +1,6 @@
 const db = require("../models");
 const Project = db.project;
+const User = db.user;
 const Op = db.Sequelize.Op;
 
 // Create and Save a Project
@@ -85,6 +86,60 @@ exports.findOne = async (req, res) => {
   } catch (err) {
     res.status(500).send({
       message: err.message || "Error retrieving Project with id=" + id,
+    });
+  }
+};
+
+// Find all projects associated with a user
+exports.findUserProjects = async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    const data = await Project.findAll({
+      include: [
+        {
+          model: User, 
+          as: "users",
+          where: {
+            id: userId
+          },
+          attributes: [],
+          through: {
+            attributes: []
+          }
+        },
+        {
+          model: db.sprint,
+          as: "projectSprints",
+          attributes: ["id", "name", "isActive"],
+        },
+        {
+          model: db.ticket,
+          as: "projectTickets",
+          attributes: ["id"],
+        },
+        {
+          model: db.boardStatus,
+          as: "projectBoardStatuses",
+          attributes: ["name", "columnOrder"],
+        },
+        {
+          model: db.githubRepository,
+          as: "projectRepositories",
+          attributes: ["id", "name", "url"],
+        },
+      ],
+      order: [["name", "ASC"]],
+    });
+
+    if (!data) {
+      return res.status(404).send({ message: "Project(s) not found." });
+    }
+
+    res.status(200).send(data);
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || "Error retrieving projects associated with user " + userId,
     });
   }
 };
