@@ -155,6 +155,40 @@ module.exports = (app) => {
 
   /**
    * @swagger
+   * /ticket/backlog:
+   *   get:
+   *     summary: Retrieve the backlog for a project
+   *     description: Returns all tickets for the given project that are not assigned to any sprint.
+   *     tags: [Tickets]
+   *     parameters:
+   *       - in: query
+   *         name: projectId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: Id of the project whose backlog to fetch.
+   *     responses:
+   *       200:
+   *         description: Array of unassigned tickets ordered by priority.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/Ticket'
+   *       400:
+   *         description: projectId missing.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       401:
+   *         description: Not authenticated.
+   */
+  router.get("/ticket/backlog", authenticateRoute, Ticket.findBacklog);
+
+  /**
+   * @swagger
    * /ticket/{id}:
    *   get:
    *     summary: Retrieve a ticket by id
@@ -285,6 +319,7 @@ module.exports = (app) => {
    *   put:
    *     summary: Move a ticket into a sprint
    *     description: Sets the ticket's sprintId, removing it from the backlog.
+   *     description: Sets the ticket's sprintId, removing it from the backlog.
    *     tags: [Tickets]
    *     parameters:
    *       - in: path
@@ -322,6 +357,7 @@ module.exports = (app) => {
    *   put:
    *     summary: Return a ticket to the backlog
    *     description: Clears the ticket's sprintId.
+   *     description: Clears the ticket's sprintId.
    *     tags: [Tickets]
    *     parameters:
    *       - in: path
@@ -336,7 +372,6 @@ module.exports = (app) => {
    *       401:
    *         description: Not authenticated.
    */
-  router.put("/ticket/:id/unassign", [authenticateRoute, isAdmin], Ticket.removeFromSprint);
-
+  router.put("/ticket/:id/unassign", authenticateRoute, Ticket.removeFromSprint);
   app.use("/sprintboardapi", router);
 };
