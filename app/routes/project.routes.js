@@ -99,16 +99,12 @@ module.exports = (app) => {
   
   router.get("/projects/user/:userId", authenticateRoute, Project.findUserProjects);
 
-
   router.get("/projects/:id/members", authenticateRoute, Project.findProjectMembers);
 
   router.post("/projects/:id/members", [authenticateRoute, isAdmin], Project.addProjectMember);
 
   router.put("/projects/:id/members", [authenticateRoute, isAdmin], Project.updateProjectMember);
-
-  router.delete("/projects/:id/members/:userId", [authenticateRoute, isAdmin], Project.deleteProjectMember);
-
-
+  
   /**
    * @swagger
    * /projects/{id}:
@@ -136,50 +132,52 @@ module.exports = (app) => {
    *               $ref: '#/components/schemas/Message'
    *       403:
    *         description: Admin privileges required.
-   */
-  router.put("/projects/:id", [authenticateRoute, isAdmin], Project.update);
+  */
+ router.put("/projects/:id", [authenticateRoute, isAdmin], Project.update);
+ 
+ /**
+  * @swagger
+  * /projects/{id}:
+  *   delete:
+  *     summary: Delete a project by id (Admin only)
+  *     tags: [Projects]
+  *     parameters:
+  *       - in: path
+  *         name: id
+  *         required: true
+  *         schema:
+  *           type: integer
+  *     responses:
+  *       200:
+  *         description: Project deleted (or not found).
+  *         content:
+  *           application/json:
+  *             schema:
+  *               $ref: '#/components/schemas/Message'
+  *       403:
+  *         description: Admin privileges required.
+ */
+router.delete("/projects/:id", [authenticateRoute, isAdmin], Project.delete);
 
-  /**
-   * @swagger
-   * /projects/{id}:
-   *   delete:
-   *     summary: Delete a project by id (Admin only)
-   *     tags: [Projects]
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: integer
-   *     responses:
-   *       200:
-   *         description: Project deleted (or not found).
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/Message'
-   *       403:
-   *         description: Admin privileges required.
-   */
-  router.delete("/projects/:id", [authenticateRoute, isAdmin], Project.delete);
+/**
+ * @swagger
+ * /projects:
+ *   delete:
+ *     summary: Delete all projects (Admin only)
+ *     tags: [Projects]
+ *     responses:
+ *       200:
+ *         description: All projects deleted.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Message'
+ *       403:
+ *         description: Admin privileges required.
+*/
+router.delete("/projects/", [authenticateRoute, isAdmin], Project.deleteAll);
 
-  /**
-   * @swagger
-   * /projects:
-   *   delete:
-   *     summary: Delete all projects (Admin only)
-   *     tags: [Projects]
-   *     responses:
-   *       200:
-   *         description: All projects deleted.
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/Message'
-   *       403:
-   *         description: Admin privileges required.
-   */
-  router.delete("/projects/", [authenticateRoute, isAdmin], Project.deleteAll);
+router.delete("/projects/:id/members/:userId", [authenticateRoute, isAdmin], Project.deleteProjectMember);
 
-  app.use("/sprintboardapi", router);
+app.use("/sprintboardapi", router);
 };

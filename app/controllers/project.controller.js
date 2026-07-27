@@ -179,6 +179,7 @@ exports.findProjectMembers = async (req, res) => {
 // Add a user to the Project Members junction table
 exports.addProjectMember = async (req, res) => {
   const projectId = req.params.id;
+  
   try {
     const userId = req.body.userId;
     const projectRole = req.body.projectRole;
