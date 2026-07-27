@@ -19,6 +19,7 @@ jobs:
       DB_USER: root
       DB_PW: root
       DB_TEST_NAME: sprintplanning_test_db
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
