@@ -316,7 +316,8 @@ module.exports = (app) => {
    *       500:
    *         description: Sprint does not exist (foreign key violation).
    */
-  router.put("/ticket/:id/assign", [authenticateRoute, isAdmin], Ticket.assignToSprint);
+  router.put("/ticket/:id/assign", authenticateRoute, Ticket.assignToSprint);
+
 
   /**
    * @swagger
@@ -340,7 +341,6 @@ module.exports = (app) => {
    *       403:
    *         description: Not an admin.
    */
-  router.put("/ticket/:id/unassign", [authenticateRoute, isAdmin], Ticket.removeFromSprint);
-
-  app.use("/museumapi", router);
+  router.put("/ticket/:id/unassign", authenticateRoute, Ticket.removeFromSprint);
+  app.use("/sprintboardapi", router);
 };

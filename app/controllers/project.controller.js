@@ -20,6 +20,14 @@ exports.create = async (req, res) => {
 
   try {
     const data = await Project.create(project);
+
+    // "No Status" is what a new ticket defaults into.
+    await db.boardStatus.create({
+      name: "No Status",
+      columnOrder: 1,
+      projectId: data.id,
+    });
+
     res.send(data);
   } catch (err) {
     res.status(500).send({
