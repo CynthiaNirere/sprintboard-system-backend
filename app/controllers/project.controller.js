@@ -88,8 +88,9 @@ exports.findOne = async (req, res) => {
       include: [
         { model: db.boardStatus, as: "projectBoardStatuses", attributes: ["id", "name", "columnOrder"] },
         { model: db.githubRepository, as: "projectRepositories", attributes: ["id", "name"] },
-        ],
-            });
+        { model: db.sprint, as: "projectSprints", attributes: ["id", "name", "isActive"] },
+      ],
+    });
     res.send(data);
   } catch (err) {
     res.status(500).send({
@@ -111,9 +112,9 @@ exports.findUserProjects = async (req, res) => {
           where: {
             id: userId
           },
-          attributes: [],
+          attributes: ["id"],
           through: {
-            attributes: []
+            attributes: [ "projectRole" ]
           }
         },
         {
