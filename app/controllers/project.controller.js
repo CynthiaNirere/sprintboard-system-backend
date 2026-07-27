@@ -52,7 +52,7 @@ exports.findAll = async (req, res) => {
         {
           model: db.sprint,
           as: "projectSprints",
-          attributes: ["id", "name", "isActive"],
+          attributes: ["id", "name", "isActive", "startDate", "endDate"],
         },
         {
           model: db.ticket,
@@ -62,7 +62,7 @@ exports.findAll = async (req, res) => {
         {
           model: db.boardStatus,
           as: "projectBoardStatuses",
-          attributes: ["name", "columnOrder"],
+          attributes: ["id", "name", "columnOrder"],
         },
        {
         model: db.githubRepository,
@@ -86,7 +86,7 @@ exports.findOne = async (req, res) => {
   try {
     const data = await Project.findByPk(id, {
       include: [
-        { model: db.boardStatus, as: "projectBoardStatuses", attributes: ["name", "columnOrder"] },
+        { model: db.boardStatus, as: "projectBoardStatuses", attributes: ["id", "name", "columnOrder"] },
         { model: db.githubRepository, as: "projectRepositories", attributes: ["id", "name"] },
         ],
             });
@@ -119,7 +119,7 @@ exports.findUserProjects = async (req, res) => {
         {
           model: db.sprint,
           as: "projectSprints",
-          attributes: ["id", "name", "isActive"],
+          attributes: ["id", "name", "isActive", "startDate", "endDate"],
         },
         {
           model: db.ticket,
@@ -129,7 +129,7 @@ exports.findUserProjects = async (req, res) => {
         {
           model: db.boardStatus,
           as: "projectBoardStatuses",
-          attributes: ["name", "columnOrder"],
+          attributes: ["id", "name", "columnOrder"],
         },
         {
           model: db.githubRepository,
