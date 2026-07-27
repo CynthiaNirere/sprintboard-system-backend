@@ -350,7 +350,8 @@ module.exports = (app) => {
    *       500:
    *         description: Sprint does not exist (foreign key violation).
    */
-  router.put("/ticket/:id/assign", [authenticateRoute, isAdmin], Ticket.assignToSprint);
+  router.put("/ticket/:id/assign", authenticateRoute, Ticket.assignToSprint);
+
 
   /**
    * @swagger
