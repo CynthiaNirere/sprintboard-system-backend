@@ -184,8 +184,21 @@ exports.addProjectMember = async (req, res) => {
     const userId = req.body.userId;
     const projectRole = req.body.projectRole;
 
-    if (!userId) {
-      return res.status(400).send({ message: "User ID was not included in request!" });
+    if (!userId || !projectRole) {
+      return res.status(400).send({ message: "User ID or project role was not included in request!" });
+    }
+
+    const existingProjectMember = await ProjectMember.findOne({
+      where: {
+        projectId: projectId,
+        userId: userId
+      }
+    });
+
+    if (existingProjectMember) {
+      return res.status(400).send({
+        message: "This user is already a member of this project."
+      });
     }
 
     const newProjectMember = {

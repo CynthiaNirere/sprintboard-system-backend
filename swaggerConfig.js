@@ -111,7 +111,7 @@ const options = {
             updatedAt: { type: "string", format: "date-time" },
             projectSprints: {
               type: "array",
-              description: "Included on GET /projects and GET /users/{id}.",
+              description: "Included on GET /projects, GET /projects/{id}, GET /projects/user/{userId}, and GET /users/{id}.",
               items: {
                 type: "object",
                 properties: { id: { type: "integer" }, name: { type: "string" }, isActive: { type: "boolean" } },
@@ -119,12 +119,12 @@ const options = {
             },
             projectTickets: {
               type: "array",
-              description: "Included on GET /projects (ids only).",
+              description: "Included on GET /projects and GET /projects/user/{userId} (ids only).",
               items: { type: "object", properties: { id: { type: "integer" } } },
             },
             projectBoardStatuses: {
               type: "array",
-              description: "Included on GET /projects and GET /projects/{id}.",
+              description: "Included on GET /projects, GET /projects/{id}, and GET /projects/user/{userId}.",
               items: {
                 type: "object",
                 properties: { name: { type: "string" }, columnOrder: { type: "integer" } },
@@ -132,13 +132,13 @@ const options = {
             },
             projectRepositories: {
               type: "array",
-              description: "Included on GET /projects and GET /projects/{id}.",
+              description: "Included on GET /projects, GET /projects/{id} (id/name only), and GET /projects/user/{userId}.",
               items: {
                 type: "object",
                 properties: {
                   id: { type: "integer" },
                   name: { type: "string" },
-                  url: { type: "string", description: "Only included on GET /projects, not GET /projects/{id}." },
+                  url: { type: "string", description: "Only included on GET /projects and GET /projects/user/{userId}, not GET /projects/{id}." },
                 },
               },
             },
@@ -148,6 +148,26 @@ const options = {
           type: "object",
           required: ["name"],
           properties: { name: { type: "string" }, description: { type: "string", nullable: true } },
+        },
+
+        ProjectMember: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 3 },
+            firstName: { type: "string", example: "Sofia" },
+            lastName: { type: "string", example: "Chen" },
+            globalRole: { type: "string", enum: ["ADMIN", "USER"] },
+            projectRole: { type: "string", enum: ["PROJECT_ADMIN", "DEVELOPER"], description: "Comes from the project_members join table, not the user record itself." },
+          },
+        },
+        ProjectMemberInput: {
+          type: "object",
+          required: ["userId", "projectRole"],
+          description: "Both fields are validated by addProjectMember and updateProjectMember — a 400 is returned if either is missing.",
+          properties: {
+            userId: { type: "integer" },
+            projectRole: { type: "string", enum: ["PROJECT_ADMIN", "DEVELOPER"] },
+          },
         },
 
         Sprint: {
