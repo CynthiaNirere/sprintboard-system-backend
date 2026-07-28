@@ -249,22 +249,46 @@ exports.update = async (req, res) => {
 // Update a user in the Project Members junction table
 exports.updateProjectMember = async (req, res) => {
   const projectId = req.params.id;
+  const userId = req.body.userId;
+  const projectRole = req.body.projectRole;
+  const requestedById = req.userId;
+
+  if (!userId || !projectRole) {
+    return res.status(400).send({ message: "userId or projectRole was missing in the request!" });
+  }
 
   try {
-    const userId = req.body.userId;
-    const projectRole = req.body.projectRole;
-
-    if (!userId || !projectRole) {
-      return res.status(400).send({ message: "User ID or project role was not included in request!" });
-    }
-
-    const num = await ProjectMember.update(req.body, {
+    const userToUpdate = await ProjectMember.findOne({
       where: {
         projectId: projectId,
         userId: userId
+      }
+    });
+
+    if (!userToUpdate) {
+      return res.status(404).send({ message: "Project member not found." });
+    }
+
+    const requestingUser = await User.findByPk(requestedById);
+    if (requestingUser.globalRole !== "ADMIN") {
+      if (userId === requestedById) {
+        return res.status(403).send({ message: "Access denied. Project Admins cannot update their own roles." });
+      }
+      if (userId.projectRole === "PROJECT_ADMIN") {
+        return res.status(403).send({ message: "Access denied. Only Admins can update other Project Admins." });
+      }
+    }
+
+    const [num] = await ProjectMember.update(
+      { projectRole: projectRole },
+      {
+        where: {
+          projectId: projectId,
+          userId: userId
       },
     });
-    if (num == 1) {
+
+    if (num == 1 || num == 0) {
       res.status(200).send({
         message: "Project role was updated successfully!",
       });
@@ -275,7 +299,7 @@ exports.updateProjectMember = async (req, res) => {
     }
   } catch (err) {
     res.status(500).send({
-      message: err.message || "Error updating project role in Project " + projectId,
+      message: err.message || `Error updating project role for user ${userId} in project ${projectId}.`,
     });
   }
 };
@@ -334,7 +358,7 @@ exports.deleteProjectMember = async (req, res) => {
     });
 
     if (!userToDelete) {
-      return res.status(404).send({ message: "Project member not found.;" });
+      return res.status(404).send({ message: "Project member not found." });
     }
 
     if (userToDelete.projectRole === "PROJECT_ADMIN") {
