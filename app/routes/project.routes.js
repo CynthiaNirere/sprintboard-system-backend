@@ -2,6 +2,7 @@ module.exports = (app) => {
   const Project = require("../controllers/project.controller.js");
   const { authenticateRoute } = require("../authentication/authentication");
   const isAdmin = require("../middleware/isAdmin");
+  const isProjectAdmin = require("../middleware/isProjectAdmin.js");
 
   var router = require("express").Router();
 
@@ -190,7 +191,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin privileges required.
    */
-  router.post("/projects/:id/members", [authenticateRoute, isAdmin], Project.addProjectMember);
+  router.post("/projects/:id/members", [authenticateRoute, isProjectAdmin], Project.addProjectMember);
 
   /**
    * @swagger
@@ -232,7 +233,7 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  router.put("/projects/:id/members", [authenticateRoute, isAdmin], Project.updateProjectMember);
+  router.put("/projects/:id/members", [authenticateRoute, isProjectAdmin], Project.updateProjectMember);
 
   /**
    * @swagger
@@ -339,7 +340,7 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  router.delete("/projects/:id/members/:userId", [authenticateRoute, isAdmin], Project.deleteProjectMember);
+  router.delete("/projects/:id/members/:userId", [authenticateRoute, isProjectAdmin], Project.deleteProjectMember);
 
   app.use("/sprintboardapi", router);
 };

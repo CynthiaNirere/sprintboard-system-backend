@@ -69,7 +69,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin privileges required.
    */
-  router.get("/users/", [authenticateRoute, isAdmin], User.findAll);
+  router.get("/users/", [authenticateRoute], User.findAll);
 
   /**
    * @swagger

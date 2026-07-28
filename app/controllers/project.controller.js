@@ -323,8 +323,27 @@ exports.deleteAll = async (req, res) => {
 exports.deleteProjectMember = async (req, res) => {
   const projectId = req.params.id;
   const userId = req.params.userId;
+  const requestedById = req.userId;
 
   try {
+    const userToDelete = await ProjectMember.findOne({
+      where: {
+        projectId: projectId,
+        userId: userId
+      }
+    });
+
+    if (!userToDelete) {
+      return res.status(404).send({ message: "Project member not found.;" });
+    }
+
+    if (userToDelete.projectRole === "PROJECT_ADMIN") {
+      const requestingUser = await User.findByPk(requestedById);
+      if (requestingUser.globalRole !== "ADMIN") {
+        return res.status(403).send({ message: "Access denied. Only Admins can delete Project Admins." });
+      }
+    }
+
     const num = await ProjectMember.destroy({
       where: {
         projectId: projectId,
