@@ -185,7 +185,7 @@ exports.addProjectMember = async (req, res) => {
     const projectRole = req.body.projectRole;
 
     if (!userId || !projectRole) {
-      return res.status(400).send({ message: "User ID or project role was not included in request!" });
+      return res.status(400).send({ message: "userId or projectRole was missing in the request!" });
     }
 
     const existingProjectMember = await ProjectMember.findOne({
@@ -274,7 +274,7 @@ exports.updateProjectMember = async (req, res) => {
       if (userId === requestedById) {
         return res.status(403).send({ message: "Access denied. Project Admins cannot update their own roles." });
       }
-      if (userId.projectRole === "PROJECT_ADMIN") {
+      if (userToUpdate.projectRole === "PROJECT_ADMIN") {
         return res.status(403).send({ message: "Access denied. Only Admins can update other Project Admins." });
       }
     }
