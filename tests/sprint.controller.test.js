@@ -1,6 +1,7 @@
 jest.mock("../app/models", () => ({
   sprint: {
     create: jest.fn(),
+    bulkCreate: jest.fn(),
     findAll: jest.fn(),
     findByPk: jest.fn(),
     update: jest.fn(),
@@ -66,7 +67,6 @@ describe("sprint.create", () => {
   it("throws when the name is missing", async () => {
     const res = mockRes();
 
-    //  the returned promise REJECTS instead of sending a response.
     await expect(
       sprintController.create(
         {
@@ -95,22 +95,23 @@ describe("sprint.findAll", () => {
     await sprintController.findAll({ query: { projectId: 5 } }, res);
 
     expect(db.sprint.findAll).toHaveBeenCalledWith(
-  expect.objectContaining({
-    where: { projectId: 5 },
-    order: [["startDate", "ASC"]],
-  })
-);
+      expect.objectContaining({
+        where: { projectId: 5 },
+        order: [["startDate", "ASC"]],
+      })
+    );
     expect(res.send).toHaveBeenCalledWith(fakeSprints);
   });
 });
 
 // createRecurring bulk-generates sequential sprints (e.g. six 2-week sprints
-// in one call). Verified against the REAL database, same as sprint.create
-// above, since bulkCreate's own behavior (date sequencing, isActive default)
-// is exactly the business logic worth proving.
+// in one call). This file mocks the DB, so these check what was PASSED to
+// Sprint.bulkCreate rather than querying the DB afterward, since a mocked
+// findAll has no way to "see" what a separate mocked bulkCreate produced.
 describe("sprint.createRecurring", () => {
-  it("creates the requested number of sprints with sequential names and back-to-back dates", async () => {
+  it("calls bulkCreate with sequential names and back-to-back dates", async () => {
     const res = mockRes();
+    db.sprint.bulkCreate.mockResolvedValue([]);
 
     await sprintController.createRecurring(
       {
@@ -119,35 +120,22 @@ describe("sprint.createRecurring", () => {
           startDate: "2026-08-01",
           lengthDays: 14,
           count: 3,
-          projectId: project.id,
+          projectId: 5,
         },
       },
       res
     );
 
-    const found = await db.sprint.findAll({
-      where: { projectId: project.id },
-      order: [["startDate", "ASC"]],
-    });
-
-    expect(found).toHaveLength(3);
-
-    expect(found[0].name).toBe("Sprint 1");
-    expect(found[0].startDate.toISOString()).toContain("2026-08-01");
-    expect(found[0].endDate.toISOString()).toContain("2026-08-14");
-
-    expect(found[1].name).toBe("Sprint 2");
-    expect(found[1].startDate.toISOString()).toContain("2026-08-15");
-    expect(found[1].endDate.toISOString()).toContain("2026-08-28");
-
-    // Sprint 3 starts the day immediately after Sprint 2 ends — no gap, no overlap.
-    expect(found[2].name).toBe("Sprint 3");
-    expect(found[2].startDate.toISOString()).toContain("2026-08-29");
-    expect(found[2].endDate.toISOString()).toContain("2026-09-11");
+    expect(db.sprint.bulkCreate).toHaveBeenCalledWith([
+      { name: "Sprint 1", startDate: "2026-08-01", endDate: "2026-08-14", isActive: true, projectId: 5 },
+      { name: "Sprint 2", startDate: "2026-08-15", endDate: "2026-08-28", isActive: true, projectId: 5 },
+      { name: "Sprint 3", startDate: "2026-08-29", endDate: "2026-09-11", isActive: true, projectId: 5 },
+    ]);
   });
 
   it("marks every generated sprint as active", async () => {
     const res = mockRes();
+    db.sprint.bulkCreate.mockResolvedValue([]);
 
     await sprintController.createRecurring(
       {
@@ -156,20 +144,20 @@ describe("sprint.createRecurring", () => {
           startDate: "2026-08-01",
           lengthDays: 7,
           count: 2,
-          projectId: project.id,
+          projectId: 5,
         },
       },
       res
     );
 
-    const found = await db.sprint.findAll({ where: { projectId: project.id } });
-    expect(found).toHaveLength(2);
-    found.forEach((sprint) => {
+    const sprintsPassedIn = db.sprint.bulkCreate.mock.calls[0][0];
+    expect(sprintsPassedIn).toHaveLength(2);
+    sprintsPassedIn.forEach((sprint) => {
       expect(sprint.isActive).toBe(true);
     });
   });
 
-  it("returns 400 when a required field is missing", async () => {
+  it("returns 400 when a required field is missing, without calling bulkCreate", async () => {
     const res = mockRes();
 
     await sprintController.createRecurring(
@@ -179,20 +167,23 @@ describe("sprint.createRecurring", () => {
           startDate: "2026-08-01",
           lengthDays: 14,
           // count intentionally omitted
-          projectId: project.id,
+          projectId: 5,
         },
       },
       res
     );
 
     expect(res.status).toHaveBeenCalledWith(400);
-
-    const found = await db.sprint.findAll({ where: { projectId: project.id } });
-    expect(found).toHaveLength(0);
+    expect(db.sprint.bulkCreate).not.toHaveBeenCalled();
   });
 
-  it("sends the created sprints back in the response", async () => {
+  it("sends back whatever bulkCreate resolves with", async () => {
     const res = mockRes();
+    const fakeCreated = [
+      { id: 1, name: "Sprint 1", projectId: 5 },
+      { id: 2, name: "Sprint 2", projectId: 5 },
+    ];
+    db.sprint.bulkCreate.mockResolvedValue(fakeCreated);
 
     await sprintController.createRecurring(
       {
@@ -201,15 +192,32 @@ describe("sprint.createRecurring", () => {
           startDate: "2026-08-01",
           lengthDays: 14,
           count: 2,
-          projectId: project.id,
+          projectId: 5,
         },
       },
       res
     );
 
-    const data = res.send.mock.calls[0][0];
-    expect(data).toHaveLength(2);
-    expect(data[0].name).toBe("Sprint 1");
-    expect(data[1].name).toBe("Sprint 2");
+    expect(res.send).toHaveBeenCalledWith(fakeCreated);
+  });
+
+  it("returns 500 when bulkCreate fails", async () => {
+    const res = mockRes();
+    db.sprint.bulkCreate.mockRejectedValue(new Error("db down"));
+
+    await sprintController.createRecurring(
+      {
+        body: {
+          name: "Sprint",
+          startDate: "2026-08-01",
+          lengthDays: 14,
+          count: 2,
+          projectId: 5,
+        },
+      },
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(500);
   });
 });
