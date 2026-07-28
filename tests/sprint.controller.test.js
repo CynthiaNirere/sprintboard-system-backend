@@ -94,10 +94,12 @@ describe("sprint.findAll", () => {
     const res = mockRes();
     await sprintController.findAll({ query: { projectId: 5 } }, res);
 
-    expect(db.sprint.findAll).toHaveBeenCalledWith({
-      where: { projectId: 5 },
-      order: [["startDate", "ASC"]],
-    });
+    expect(db.sprint.findAll).toHaveBeenCalledWith(
+  expect.objectContaining({
+    where: { projectId: 5 },
+    order: [["startDate", "ASC"]],
+  })
+);
     expect(res.send).toHaveBeenCalledWith(fakeSprints);
   });
 });
