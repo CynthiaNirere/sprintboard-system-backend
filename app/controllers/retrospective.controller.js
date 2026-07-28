@@ -146,7 +146,7 @@ exports.findSprintRetro = async (req, res) => {
     res.status(200).send(data);
   } catch (err) {
     res.status(500).send({
-      message: err.message || "Error retrieving retros associated with user " + userId,
+      message: err.message || "Error retrieving retro for sprint with id= " + sprintId,
     });
   }
 };
