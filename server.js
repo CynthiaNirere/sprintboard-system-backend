@@ -58,6 +58,10 @@ require("./app/routes/project.routes.js")(app);
 require("./app/routes/boardStatus.routes.js")(app);
 require("./app/routes/test.routes.js")(app);
 require("./app/routes/ticket.routes.js")(app);
+require("./app/routes/retrospective.routes.js")(app);
+require("./app/routes/retrospectiveItems.routes.js")(app);
+
+
 
 // set port, listen for requests
 const PORT = process.env.PORT || 3200;
