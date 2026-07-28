@@ -119,7 +119,7 @@ exports.findRetroItem = async (req, res) => {
     res.status(200).send(data);
   } catch (err) {
     res.status(500).send({
-      message: err.message || "Error retrieving retroItems associated with user " + userId,
+      message: err.message || "Error retrieving retroItem with id= " + retroId,
     });
   }
 };
