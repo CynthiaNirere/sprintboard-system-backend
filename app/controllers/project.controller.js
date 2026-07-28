@@ -21,6 +21,14 @@ exports.create = async (req, res) => {
 
   try {
     const data = await Project.create(project);
+
+    // "No Status" is what a new ticket defaults into.
+    await db.boardStatus.create({
+      name: "No Status",
+      columnOrder: 1,
+      projectId: data.id,
+    });
+
     res.send(data);
   } catch (err) {
     res.status(500).send({
@@ -44,7 +52,7 @@ exports.findAll = async (req, res) => {
         {
           model: db.sprint,
           as: "projectSprints",
-          attributes: ["id", "name", "isActive"],
+          attributes: ["id", "name", "isActive", "startDate", "endDate"],
         },
         {
           model: db.ticket,
@@ -54,7 +62,7 @@ exports.findAll = async (req, res) => {
         {
           model: db.boardStatus,
           as: "projectBoardStatuses",
-          attributes: ["name", "columnOrder"],
+          attributes: ["id", "name", "columnOrder"],
         },
        {
         model: db.githubRepository,
@@ -78,7 +86,7 @@ exports.findOne = async (req, res) => {
   try {
     const data = await Project.findByPk(id, {
       include: [
-        { model: db.boardStatus, as: "projectBoardStatuses", attributes: ["name", "columnOrder"] },
+        { model: db.boardStatus, as: "projectBoardStatuses", attributes: ["id", "name", "columnOrder"] },
         { model: db.githubRepository, as: "projectRepositories", attributes: ["id", "name"] },
         { model: db.sprint, as: "projectSprints", attributes: ["id", "name", "isActive"] },
       ],
@@ -112,7 +120,7 @@ exports.findUserProjects = async (req, res) => {
         {
           model: db.sprint,
           as: "projectSprints",
-          attributes: ["id", "name", "isActive"],
+          attributes: ["id", "name", "isActive", "startDate", "endDate"],
         },
         {
           model: db.ticket,
@@ -122,7 +130,7 @@ exports.findUserProjects = async (req, res) => {
         {
           model: db.boardStatus,
           as: "projectBoardStatuses",
-          attributes: ["name", "columnOrder"],
+          attributes: ["id", "name", "columnOrder"],
         },
         {
           model: db.githubRepository,

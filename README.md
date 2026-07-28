@@ -30,6 +30,7 @@ npm install
 
    ```
    ProxyPass /sprintboardapi http://localhost:3200/sprintboardapi
+   ProxyPass /museumapi http://localhost:3200/sprintboardapi
    ```
 
    - Find the following line and remove the **#** at the front of the line.
