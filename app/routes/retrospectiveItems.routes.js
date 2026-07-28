@@ -9,15 +9,15 @@ module.exports = (app) => {
    * @swagger
    * tags:
    *   name: RetroItems
-   *   description: RetroItems
+   *   description: Individual sticky-note items on a retrospective
    */
 
   /**
    * @swagger
    * /retroItems:
    *   post:
-   *     summary: Create a new retroItem (Admin only)
-   *     description: '`createdBy` is set automatically from the authenticated user — do not send it.'
+   *     summary: Create a new retro item
+   *     description: Callable by any authenticated user — this route is not admin-restricted.
    *     tags: [RetroItems]
    *     requestBody:
    *       required: true
@@ -33,13 +33,13 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/RetroItem'
    *       400:
-   *         description: Name missing.
+   *         description: itemType, content, userId, or retroId missing.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
-   *       403:
-   *         description: Admin privileges required.
+   *       401:
+   *         description: Not authenticated.
    */
   router.post("/retroItems/", [authenticateRoute], RetroItem.create);
 
@@ -47,20 +47,21 @@ module.exports = (app) => {
    * @swagger
    * /retroItems:
    *   get:
-   *     summary: Retrieve all retroItems
+   *     summary: Retrieve all retro items
    *     description: >
-   *       Supports a `name` query parameter (partial match). Each retroItem
-   *       includes its sprints, ticket ids, board statuses, and repositories.
+   *       Supports a `title` query parameter (note: retro items don't
+   *       actually have a title field, so this filter currently has no
+   *       effect — likely leftover from a copy-pasted controller template).
+   *       Each item includes the authoring user's id/email.
    *     tags: [RetroItems]
    *     parameters:
    *       - in: query
-   *         name: name
+   *         name: title
    *         schema:
    *           type: string
-   *         description: Partial match filter on retroItem name.
    *     responses:
    *       200:
-   *         description: Array of retroItems.
+   *         description: Array of retro items.
    *         content:
    *           application/json:
    *             schema:
@@ -76,8 +77,8 @@ module.exports = (app) => {
    * @swagger
    * /retroItems/{id}:
    *   get:
-   *     summary: Retrieve a retroItem by id
-   *     description: Includes board statuses and repositories.
+   *     summary: Retrieve a retro item by id
+   *     description: Includes the authoring user's id/email.
    *     tags: [RetroItems]
    *     parameters:
    *       - in: path
@@ -87,7 +88,7 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: The retroItem.
+   *         description: The retro item.
    *         content:
    *           application/json:
    *             schema:
@@ -96,15 +97,47 @@ module.exports = (app) => {
    *         description: Not authenticated.
    */
   router.get("/retroItems/:id", authenticateRoute, RetroItem.findOne);
-  
-  router.get("/retroItems/retro/:retroId", authenticateRoute, RetroItem.findRetroItem);
 
+  /**
+   * @swagger
+   * /retroItems/retro/{retroId}:
+   *   get:
+   *     summary: Retrieve all items belonging to a given retro
+   *     description: >
+   *       NOTE: RetroItemServices.js's findSprintRetroItem() currently calls
+   *       "retroItems/sprint/{sprintId}", which does not match this route
+   *       (path segment "sprint" vs "retro", and this endpoint filters by
+   *       retroId, not sprintId). Nothing appears to call
+   *       findSprintRetroItem() yet, so this hasn't surfaced as a live bug,
+   *       but it will 404 the moment something does. Worth fixing the
+   *       frontend service to call this path before it's wired up.
+   *     tags: [RetroItems]
+   *     parameters:
+   *       - in: path
+   *         name: retroId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: Array of items for this retro.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/RetroItem'
+   *       401:
+   *         description: Not authenticated.
+   */
+  router.get("/retroItems/retro/:retroId", authenticateRoute, RetroItem.findRetroItem);
 
   /**
    * @swagger
    * /retroItems/{id}:
    *   put:
-   *     summary: Update a retroItem by id (Admin only)
+   *     summary: Update a retro item by id
+   *     description: Callable by any authenticated user — this route is not admin-restricted.
    *     tags: [RetroItems]
    *     parameters:
    *       - in: path
@@ -125,8 +158,8 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
-   *       403:
-   *         description: Admin privileges required.
+   *       401:
+   *         description: Not authenticated.
    */
   router.put("/retroItems/:id", [authenticateRoute], RetroItem.update);
 
@@ -134,7 +167,8 @@ module.exports = (app) => {
    * @swagger
    * /retroItems/{id}:
    *   delete:
-   *     summary: Delete a retroItem by id (Admin only)
+   *     summary: Delete a retro item by id
+   *     description: Callable by any authenticated user — this route is not admin-restricted.
    *     tags: [RetroItems]
    *     parameters:
    *       - in: path
@@ -149,8 +183,8 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
-   *       403:
-   *         description: Admin privileges required.
+   *       401:
+   *         description: Not authenticated.
    */
   router.delete("/retroItems/:id", [authenticateRoute], RetroItem.delete);
 
@@ -158,11 +192,11 @@ module.exports = (app) => {
    * @swagger
    * /retroItems:
    *   delete:
-   *     summary: Delete all retroItems (Admin only)
+   *     summary: Delete all retro items (Admin only)
    *     tags: [RetroItems]
    *     responses:
    *       200:
-   *         description: All retroItems deleted.
+   *         description: All retro items deleted.
    *         content:
    *           application/json:
    *             schema:

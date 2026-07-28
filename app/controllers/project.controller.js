@@ -1,6 +1,7 @@
 const db = require("../models");
-const Project = db.project;
 const User = db.user;
+const Project = db.project;
+const ProjectMember = db.projectMember;
 const Op = db.Sequelize.Op;
 
 // Create and Save a Project
@@ -153,6 +154,82 @@ exports.findUserProjects = async (req, res) => {
   }
 };
 
+// Find all members associated with a project with an id
+exports.findProjectMembers = async (req, res) => {
+  const projectId = req.params.id;
+  
+  try {
+    const data = await Project.findByPk(projectId, {
+      include: [
+        {
+          model: User, 
+          as: "users",
+          attributes: [ "id", "firstName", "lastName", "globalRole" ],
+          through: {
+            attributes: [ "projectRole" ]
+          }
+        }
+      ],
+    });
+
+    if (!data) {
+      return res.status(404).send({ message: "Project not found." });
+    }
+
+    res.status(200).send(data.users);
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || "Error retrieving members associated with Project " + projectId,
+    });
+  }
+};
+
+// Add a user to the Project Members junction table
+exports.addProjectMember = async (req, res) => {
+  const projectId = req.params.id;
+  
+  try {
+    const userId = req.body.userId;
+    const projectRole = req.body.projectRole;
+
+    if (!userId || !projectRole) {
+      return res.status(400).send({ message: "userId or projectRole was missing in the request!" });
+    }
+
+    const existingProjectMember = await ProjectMember.findOne({
+      where: {
+        projectId: projectId,
+        userId: userId
+      }
+    });
+
+    if (existingProjectMember) {
+      return res.status(400).send({
+        message: "This user is already a member of this project."
+      });
+    }
+
+    const newProjectMember = {
+      projectId: projectId,
+      userId: userId,
+      projectRole: projectRole
+    };
+
+    try {
+      const data = await ProjectMember.create(newProjectMember);
+      res.status(201).send(data);
+    } catch (err) {
+      res.status(500).send({
+        message: err.message || "An error occurred creating the project member",
+      });
+    }
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || "Error adding user to project " + projectId,
+    });
+  }
+};
+
 // Update a Project by the id in the request
 exports.update = async (req, res) => {
   const id = req.params.id;
@@ -173,6 +250,64 @@ exports.update = async (req, res) => {
   } catch (err) {
     res.status(500).send({
       message: err.message || "Error updating Project with id=" + id,
+    });
+  }
+};
+
+// Update a user in the Project Members junction table
+exports.updateProjectMember = async (req, res) => {
+  const projectId = req.params.id;
+  const userId = req.body.userId;
+  const projectRole = req.body.projectRole;
+  const requestedById = req.userId;
+
+  if (!userId || !projectRole) {
+    return res.status(400).send({ message: "userId or projectRole was missing in the request!" });
+  }
+
+  try {
+    const userToUpdate = await ProjectMember.findOne({
+      where: {
+        projectId: projectId,
+        userId: userId
+      }
+    });
+
+    if (!userToUpdate) {
+      return res.status(404).send({ message: "Project member not found." });
+    }
+
+    const requestingUser = await User.findByPk(requestedById);
+    if (requestingUser.globalRole !== "ADMIN") {
+      if (userId === requestedById) {
+        return res.status(403).send({ message: "Access denied. Project Admins cannot update their own roles." });
+      }
+      if (userToUpdate.projectRole === "PROJECT_ADMIN") {
+        return res.status(403).send({ message: "Access denied. Only Admins can update other Project Admins." });
+      }
+    }
+
+    const [num] = await ProjectMember.update(
+      { projectRole: projectRole },
+      {
+        where: {
+          projectId: projectId,
+          userId: userId
+      },
+    });
+
+    if (num == 1 || num == 0) {
+      res.status(200).send({
+        message: "Project role was updated successfully!",
+      });
+    } else {
+      res.status(404).send({
+        message: `Cannot update project role with userId=${userId}.`,
+      });
+    }
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || `Error updating project role for user ${userId} in project ${projectId}.`,
     });
   }
 };
@@ -212,6 +347,54 @@ exports.deleteAll = async (req, res) => {
   } catch (err) {
     res.status(500).send({
       message: err.message || "Some error occurred while removing all projects.",
+    });
+  }
+};
+
+// Delete a user from the Project Members junction table
+exports.deleteProjectMember = async (req, res) => {
+  const projectId = req.params.id;
+  const userId = req.params.userId;
+  const requestedById = req.userId;
+
+  try {
+    const userToDelete = await ProjectMember.findOne({
+      where: {
+        projectId: projectId,
+        userId: userId
+      }
+    });
+
+    if (!userToDelete) {
+      return res.status(404).send({ message: "Project member not found." });
+    }
+
+    if (userToDelete.projectRole === "PROJECT_ADMIN") {
+      const requestingUser = await User.findByPk(requestedById);
+      if (requestingUser.globalRole !== "ADMIN") {
+        return res.status(403).send({ message: "Access denied. Only Admins can delete Project Admins." });
+      }
+    }
+
+    const num = await ProjectMember.destroy({
+      where: {
+        projectId: projectId,
+        userId: userId
+      },
+    });
+
+    if (num == 1) {
+      res.status(200).send({
+        message: "Project member was deleted successfully!",
+      });
+    } else {
+      res.status(404).send({
+        message: `Cannot delete project member with projectId=${projectId} and userId=${userId}.`,
+      });
+    }
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || `Could not delete project member with projectId=${projectId} and userId=${userId}.`,
     });
   }
 };
