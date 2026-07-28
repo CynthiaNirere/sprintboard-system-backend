@@ -1,6 +1,8 @@
-# Recipe Backend with Node
+# SprintBoard Backend with Node
 
-This application allows users to create and maintain a list of recipes that have steps and ingredients. Please visit https://github.com/mattmiller64/recipe-frontend for the Vue 3 frontend repository.
+[![codecov](https://codecov.io/github/CynthiaNirere/sprintboard-system-backend/branch/dev/graph/badge.svg?token=4XELFOVZGB)](https://codecov.io/github/CynthiaNirere/sprintboard-system-backend)
+
+This application is an agile project management tool for planning sprints, managing a ticket backlog, and tracking work on a board. Please visit the SprintBoard frontend repository for the Vue 3 frontend.
 
 #### Please note:
 
@@ -11,7 +13,7 @@ This application allows users to create and maintain a list of recipes that have
 1. Clone the project into your **XAMPP/xamppfiles/htdocs** directory.
 
 ```
-git clone https://github.com/mattmiller64/recipe-backend.git
+git clone https://github.com/CynthiaNirere/sprintboard-system-backend.git
 ```
 
 2. Install the project.
@@ -28,24 +30,24 @@ npm install
    - It may warn you when opening it but open it anyway.
    - Add the following line as the **last line**:
 
-   ```
+```
    ProxyPass /sprintboardapi http://localhost:3200/sprintboardapi
-   ProxyPass /museumapi http://localhost:3200/sprintboardapi
-   ```
+```
 
-   - Find the following line and remove the **#** at the front of the line.
+   - Find the following lines and remove the **#** at the front of each line.
 
-   ```
+```
    LoadModule proxy_http_module modules/mod_proxy_http.so
    LoadModule proxy_http2_module modules/mod_proxy_http2.so
-   ```
+```
 
    - Save the file.
    - **Restart Apache** and exit XAMPP.
 
-4. Make a local **recipe_db** database.
+4. Make a local **sprintplanning_db** database.
 
    - Create a schema/database.
+   - Also create **sprintplanning_test_db** for running tests.
    - The Sequelize in this project will make all the tables for you.
 
 5. Add a local **.env** file and make sure that the **database** variables are correct.
@@ -53,8 +55,13 @@ npm install
    - DB_HOST = 'localhost'
    - DB_PW = '**your-local-database-password**'
    - DB_USER = '**your-local-database-username**' (usually "root")
-   - DB_NAME = '**your-local-database-name**' (example: "recipe_db")
-   - SECRET_KEY = 'xT1tdO3CfMH01pjxC+guN1LWSt2nKvr5td6KUpw7Czg='
+   - DB_NAME = '**your-local-database-name**' (example: "sprintplanning_db")
+   - DB_TEST_NAME = 'sprintplanning_test_db'
+   - SECRET_KEY = '**generate your own with the command below**'
+
+```
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
 
 6. Initialize the database (optional).
 
@@ -83,7 +90,18 @@ npm run init-db:wipe
 npm run start
 ```
 
+   The API runs at http://localhost:3200/sprintboardapi
+
 8. Using docker to deploy
 
 commands: 
    docker compose up -d
+
+9. Running tests and code coverage.
+
+```
+npm test
+npm run test:coverage
+```
+
+   Coverage runs on every push through GitHub Actions and reports to Codecov. To view it locally, open `coverage/lcov-report/index.html`.
