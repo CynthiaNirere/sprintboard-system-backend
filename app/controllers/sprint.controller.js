@@ -89,6 +89,26 @@ exports.findAll = async (req, res) => {
   try {
     const data = await Sprint.findAll({
       where: condition,
+      include: [
+              {
+                model: db.retrospective,
+                as: "sprintRetrospective",
+                include: [
+                   {
+                    model: db.retroItem,
+                    as: "retrospectiveItems",
+                    include: [
+                      {
+                        model: db.user,
+                        as: "user",
+                        attributes: ["id", "email"]
+                      },
+                    ]
+                  }
+                ]
+              },
+             
+            ],
       order: [["startDate", "ASC"]],
     });
     res.send(data);
@@ -104,7 +124,28 @@ exports.findOne = async (req, res) => {
   const id = req.params.id;
 
   try {
-    const data = await Sprint.findByPk(id);
+    const data = await Sprint.findByPk(id,{
+      include: [
+              {
+                model: db.retrospective,
+                as: "sprintRetrospective",
+                include: [
+                   {
+                    model: db.retroItem,
+                    as: "retrospectiveItems",
+                    include: [
+                      {
+                        model: db.user,
+                        as: "user",
+                        attributes: ["id", "email"]
+                      },
+                    ]
+                  }
+                ]
+              },
+             
+            ],
+    });
     res.send(data);
   } catch (err) {
     res.status(500).send({
