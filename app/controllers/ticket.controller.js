@@ -163,3 +163,61 @@ exports.deleteAll = async (req, res) => {
     });
   }
 };
+// Tickets in a given sprint
+exports.findBySprint = async (req, res) => {
+  const sprintId = req.params.sprintId;
+  try {
+    const data = await Ticket.findAll({
+      where: { sprintId: sprintId },
+      order: [["priority", "ASC"], ["createdAt", "ASC"]],
+    });
+    res.send(data);
+  } catch (err) {
+    res.status(500).send({ message: err.message || "Error retrieving sprint tickets." });
+  }
+};
+
+// Backlog: tickets with no sprint, for a project
+exports.findBacklog = async (req, res) => {
+  const projectId = req.query.projectId;
+  if (projectId === undefined) {
+    return res.status(400).send({ message: "projectId is required to view a backlog!" });
+  }
+  try {
+    const data = await Ticket.findAll({
+      where: { projectId: projectId, sprintId: null },
+      order: [["priority", "ASC"], ["createdAt", "ASC"]],
+    });
+    res.send(data);
+  } catch (err) {
+    res.status(500).send({ message: err.message || "Error retrieving the backlog." });
+  }
+};
+
+// Move a ticket into a sprint
+exports.assignToSprint = async (req, res) => {
+  const id = req.params.id;
+  const sprintId = req.body.sprintId;
+  if (sprintId === undefined) {
+    return res.status(400).send({ message: "sprintId is required!" });
+  }
+  try {
+    const num = await Ticket.update({ sprintId: sprintId }, { where: { id: id } });
+    if (num == 1) res.send({ message: "Ticket moved to sprint." });
+    else res.send({ message: `Cannot move Ticket with id=${id}.` });
+  } catch (err) {
+    res.status(500).send({ message: err.message || "Error moving ticket." });
+  }
+};
+
+// Send a ticket back to the backlog
+exports.removeFromSprint = async (req, res) => {
+  const id = req.params.id;
+  try {
+    const num = await Ticket.update({ sprintId: null }, { where: { id: id } });
+    if (num == 1) res.send({ message: "Ticket returned to backlog." });
+    else res.send({ message: `Cannot update Ticket with id=${id}.` });
+  } catch (err) {
+    res.status(500).send({ message: err.message || "Error updating ticket." });
+  }
+};

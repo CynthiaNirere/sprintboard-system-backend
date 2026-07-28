@@ -19,10 +19,13 @@
   "author": "cs",
   "license": "ISC",
   "jest": {
-    "setupFiles": [
-      "dotenv/config"
-    ]
-  },
+  "setupFiles": ["dotenv/config"],
+  "collectCoverageFrom": [
+    "app/**/*.js",
+    "!app/config/**"
+  ],
+  "coverageReporters": ["text", "lcov"]
+},
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

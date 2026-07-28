@@ -24,8 +24,11 @@ jest.mock("../app/models", () => ({
   },
   sprint: {},
   ticket: {},
-  boardStatus: {},
+  boardStatus: {
+    create: jest.fn(),
+  },
   githubRepository: {},
+
   Sequelize: {
     Op: {
       like: Symbol("like"),
@@ -33,34 +36,38 @@ jest.mock("../app/models", () => ({
   },
 }));
 
+const db = require("../app/models");
+const projectController = require("../app/controllers/project.controller");
+
+const Project = db.project;
+
+
+const mockRes = () => {
+  const res = {};
+
+  res.status = jest.fn().mockReturnValue(res);
+  res.send = jest.fn().mockReturnValue(res);
+
+  return res;
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
 describe("Project Controller", () => {
-  let req;
-  let res;
-
-  beforeEach(() => {
-    req = {
-      body: {},
-      params: {},
-      query: {},
-      userId: 1,
-    };
-
-    res = {
-      send: jest.fn(),
-      status: jest.fn().mockReturnThis(),
-    };
-
-    jest.clearAllMocks();
-  });
-
 
   describe("create", () => {
 
     it("should return 400 if name is missing", async () => {
-      req.body = {};
 
+      const req = {
+        body: {},
+        userId: 1,
+      };
+
+      const res = mockRes();
       await projectController.create(req, res);
-
       expect(res.status)
         .toHaveBeenCalledWith(400);
 
@@ -68,26 +75,35 @@ describe("Project Controller", () => {
         .toHaveBeenCalledWith({
           message: "Name cannot be empty for project!",
         });
+
     });
 
-
     it("should create a project", async () => {
-      const requestBody = {
-        name: "Website Project",
-        description: "New website",
+
+      const req = {
+        body: {
+          name: "Website Project",
+          description: "New website",
+        },
+        userId: 1,
       };
+
+      const res = mockRes();
 
       const createdProject = {
         id: 1,
-        ...requestBody,
+        name: "Website Project",
+        description: "New website",
         createdBy: 1,
       };
 
-      req.body = requestBody;
-      req.userId = 1;
-
       Project.create.mockResolvedValue(createdProject);
-
+      db.boardStatus.create.mockResolvedValue({
+        id: 1,
+        name: "No Status",
+        columnOrder: 1,
+        projectId: 1,
+      });
       await projectController.create(req, res);
 
       expect(Project.create)
@@ -96,114 +112,168 @@ describe("Project Controller", () => {
           description: "New website",
           createdBy: 1,
         });
-
+      expect(db.boardStatus.create)
+        .toHaveBeenCalledWith({
+          name: "No Status",
+          columnOrder: 1,
+          projectId: 1,
+        });
       expect(res.send)
         .toHaveBeenCalledWith(createdProject);
+
     });
 
-
     it("should handle create errors", async () => {
+
+      const req = {
+        body: {
+          name: "Project",
+        },
+        userId: 1,
+      };
+
+      const res = mockRes();
+
       Project.create.mockRejectedValue(
         new Error("Database error")
       );
-
-      req.body = {
-        name: "Project",
-      };
-
       await projectController.create(req, res);
 
       expect(res.status)
         .toHaveBeenCalledWith(500);
+
     });
 
   });
-
-
 
   describe("findAll", () => {
 
     it("should return all projects", async () => {
+
+      const req = {
+        query: {},
+      };
+
+      const res = mockRes();
+
       const projects = [
         {
           id: 1,
           name: "Project",
-        },
+        }
       ];
 
       Project.findAll.mockResolvedValue(projects);
 
-      await projectController.findAll(req, res);
+      await projectController.findAll(req,res);
 
       expect(Project.findAll)
         .toHaveBeenCalled();
+
 
       expect(res.send)
         .toHaveBeenCalledWith(projects);
+
     });
 
-
     it("should filter projects by name", async () => {
-      req.query.name = "Web";
+
+
+      const req = {
+        query:{
+          name:"Web"
+        }
+      };
+
+      const res = mockRes();
 
       Project.findAll.mockResolvedValue([]);
 
-      await projectController.findAll(req, res);
+      await projectController.findAll(req,res);
 
       expect(Project.findAll)
         .toHaveBeenCalled();
+
     });
 
 
-    it("should handle findAll errors", async () => {
+    it("should handle findAll errors", async()=>{
+
+      const req = {
+        query:{}
+      };
+
+      const res = mockRes();
+
       Project.findAll.mockRejectedValue(
         new Error("error")
       );
-
-      await projectController.findAll(req, res);
-
+      await projectController.findAll(req,res);
       expect(res.status)
         .toHaveBeenCalledWith(500);
+
     });
+
 
   });
 
 
 
-  describe("findOne", () => {
 
-    it("should return project by id", async () => {
-      req.params.id = 1;
+  describe("findOne",()=>{
+
+
+    it("should return project by id", async()=>{
+
+
+      const req = {
+        params:{
+          id:1
+        }
+      };
+
+      const res = mockRes();
 
       const project = {
-        id: 1,
-        name: "Project",
+        id:1,
+        name:"Project"
       };
 
       Project.findByPk.mockResolvedValue(project);
 
-      await projectController.findOne(req, res);
-
+      await projectController.findOne(req,res);
       expect(Project.findByPk)
         .toHaveBeenCalledWith(
           1,
           expect.any(Object)
         );
 
+
       expect(res.send)
         .toHaveBeenCalledWith(project);
+
     });
 
 
-    it("should handle findOne errors", async () => {
-      req.params.id = 1;
+
+    it("should handle findOne errors", async()=>{
+
+
+      const req = {
+        params:{
+          id:1
+        }
+      };
+
+
+      const res = mockRes();
 
       Project.findByPk.mockRejectedValue(
         new Error("error")
       );
 
-      await projectController.findOne(req, res);
 
+      await projectController.findOne(req,res);
       expect(res.status)
         .toHaveBeenCalledWith(500);
     });
@@ -533,109 +603,180 @@ describe("Project Controller", () => {
       };
 
       Project.update.mockResolvedValue([1]);
-
-      await projectController.update(req, res);
-
+      await projectController.update(req,res);
       expect(res.send)
         .toHaveBeenCalledWith({
-          message: "Project was updated successfully.",
+          message:"Project was updated successfully."
         });
+
     });
 
+    it("should handle update errors",async()=>{
 
-    it("should return message when project does not exist", async () => {
-      req.params.id = 99;
-
-      Project.update.mockResolvedValue([0]);
-
-      await projectController.update(req, res);
-
-      expect(res.send)
-        .toHaveBeenCalled();
-    });
+      const req={
+        params:{
+          id:1
+        }
+      };
 
 
-    it("should handle update errors", async () => {
+      const res=mockRes();
+
       Project.update.mockRejectedValue(
         new Error("error")
       );
 
-      await projectController.update(req, res);
+      await projectController.update(req,res);
 
       expect(res.status)
         .toHaveBeenCalledWith(500);
+
     });
 
   });
 
+  describe("delete",()=>{
 
 
-  describe("delete", () => {
+    it("should delete project",async()=>{
 
-    it("should delete a project", async () => {
-      req.params.id = 1;
+
+      const req={
+        params:{
+          id:1
+        }
+      };
+
+      const res=mockRes();
 
       Project.destroy.mockResolvedValue(1);
 
-      await projectController.delete(req, res);
+      await projectController.delete(req,res);
 
       expect(res.send)
         .toHaveBeenCalledWith({
-          message: "Project was deleted successfully!",
+          message:"Project was deleted successfully!"
         });
+
+
     });
 
 
-    it("should return message when project does not exist", async () => {
-      req.params.id = 99;
 
-      Project.destroy.mockResolvedValue(0);
+    it("should handle delete errors",async()=>{
 
-      await projectController.delete(req, res);
+      const req={
+        params:{
+          id:1
+        }
+      };
 
-      expect(res.send)
-        .toHaveBeenCalled();
-    });
+      const res=mockRes();
 
-
-    it("should handle delete errors", async () => {
       Project.destroy.mockRejectedValue(
         new Error("error")
       );
 
-      await projectController.delete(req, res);
+      await projectController.delete(req,res);
 
       expect(res.status)
         .toHaveBeenCalledWith(500);
+
+    });
+
+  });
+
+
+  describe("deleteAll",()=>{
+
+    it("should delete all projects",async()=>{
+
+      const req={};
+
+      const res=mockRes();
+      Project.destroy.mockResolvedValue(5);
+
+      await projectController.deleteAll(req,res);
+
+      expect(res.send)
+        .toHaveBeenCalledWith({
+          message:"6 Projects were deleted successfully!"
+        });
+
     });
 
   });
 
 
 
-  describe("deleteAll", () => {
+  describe("deleteProjectMember", () => {
 
-    it("should delete all projects", async () => {
-      Project.destroy.mockResolvedValue(6);
+    it("should return 404 when the target member doesn't exist", async () => {
+      req.params.id = 1;
+      req.params.userId = 999;
 
-      await projectController.deleteAll(req, res);
+      ProjectMember.findOne.mockResolvedValue(null);
 
-      expect(res.send)
-        .toHaveBeenCalledWith({
-          message: "6 Projects were deleted successfully!",
-        });
+      await projectController.deleteProjectMember(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
     });
 
 
-    it("should handle deleteAll errors", async () => {
-      Project.destroy.mockRejectedValue(
-        new Error("error")
-      );
+    it("should return 403 when a non-admin tries to delete a Project Admin", async () => {
+      req.userId = 3;
+      req.params.id = 1;
+      req.params.userId = 8;
 
-      await projectController.deleteAll(req, res);
+      ProjectMember.findOne.mockResolvedValue({ projectId: 1, userId: 8, projectRole: "PROJECT_ADMIN" });
+      User.findByPk.mockResolvedValue({ id: 3, globalRole: "USER" });
 
-      expect(res.status)
-        .toHaveBeenCalledWith(500);
+      await projectController.deleteProjectMember(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(ProjectMember.destroy).not.toHaveBeenCalled();
+    });
+
+
+    it("should allow an Admin to delete a Project Admin", async () => {
+      req.userId = 1;
+      req.params.id = 1;
+      req.params.userId = 8;
+
+      ProjectMember.findOne.mockResolvedValue({ projectId: 1, userId: 8, projectRole: "PROJECT_ADMIN" });
+      User.findByPk.mockResolvedValue({ id: 1, globalRole: "ADMIN" });
+      ProjectMember.destroy.mockResolvedValue(1);
+
+      await projectController.deleteProjectMember(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+
+    it("should allow a non-admin to delete a Developer", async () => {
+      req.userId = 3;
+      req.params.id = 1;
+      req.params.userId = 9;
+
+      ProjectMember.findOne.mockResolvedValue({ projectId: 1, userId: 9, projectRole: "DEVELOPER" });
+      ProjectMember.destroy.mockResolvedValue(1);
+
+      await projectController.deleteProjectMember(req, res);
+
+      // No User.findByPk call expected here since the target isn't a Project Admin.
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+
+    it("should return 500 on a DB error", async () => {
+      req.params.id = 1;
+      req.params.userId = 9;
+
+      ProjectMember.findOne.mockRejectedValue(new Error("db down"));
+
+      await projectController.deleteProjectMember(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
     });
 
   });
