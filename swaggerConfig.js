@@ -163,7 +163,8 @@ const options = {
         ProjectMemberInput: {
           type: "object",
           required: ["userId", "projectRole"],
-          description: "Both fields are validated by addProjectMember and updateProjectMember — a 400 is returned if either is missing.",
+          description:
+            "Both fields are validated by addProjectMember and updateProjectMember. addProjectMember also rejects a userId already on the project (400, \"This user is already a member of this project.\"). updateProjectMember and the delete endpoint restrict changes to existing Project Admins to true Admins only.",
           properties: {
             userId: { type: "integer" },
             projectRole: { type: "string", enum: ["PROJECT_ADMIN", "DEVELOPER"] },
@@ -181,6 +182,32 @@ const options = {
             isActive: { type: "boolean" },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
+            sprintRetrospective: {
+              type: "object",
+              nullable: true,
+              description: "Included on GET /sprints and GET /sprints/{id}. Null if no retrospective has been created for this sprint yet.",
+              properties: {
+                id: { type: "integer" },
+                title: { type: "string" },
+                status: { type: "string", enum: ["SCHEDULED", "IN_PROGRESS", "COMPLETED"] },
+                completionDate: { type: "string", format: "date-time", nullable: true },
+                retrospectiveItems: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      id: { type: "integer" },
+                      itemType: { type: "string", enum: ["WHAT_WENT_WELL", "WHAT_DID_NOT_GO_WELL", "NEEDS_IMPROVEMENT"] },
+                      content: { type: "string" },
+                      user: {
+                        type: "object",
+                        properties: { id: { type: "integer" }, email: { type: "string" } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         SprintInput: {
@@ -316,6 +343,67 @@ const options = {
             ticketId: { type: "integer" },
             status: { type: "string", enum: ["PENDING", "FAILED", "PASSED"], default: "PENDING" },
             userId: { type: "integer", nullable: true, description: "Maps to the test's ownerId column." },
+          },
+        },
+
+        Retro: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 1 },
+            title: { type: "string", example: "Sprint 1 Retro" },
+            status: { type: "string", enum: ["SCHEDULED", "IN_PROGRESS", "COMPLETED"] },
+            sprintId: { type: "integer" },
+            completionDate: { type: "string", format: "date-time", nullable: true },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+            sprint: {
+              type: "object",
+              description: "Included on GET /retros, GET /retros/{id}, and GET /retros/sprint/{sprintId}.",
+              properties: { id: { type: "integer" }, name: { type: "string" } },
+            },
+            retrospectiveItems: {
+              type: "array",
+              description: "Included on the same three endpoints as sprint above.",
+              items: { $ref: "#/components/schemas/RetroItem" },
+            },
+          },
+        },
+        RetroInput: {
+          type: "object",
+          required: ["title", "status", "sprintId"],
+          properties: {
+            title: { type: "string" },
+            status: { type: "string", enum: ["SCHEDULED", "IN_PROGRESS", "COMPLETED"] },
+            sprintId: { type: "integer" },
+            completionDate: { type: "string", format: "date-time", nullable: true },
+          },
+        },
+
+        RetroItem: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 1 },
+            itemType: { type: "string", enum: ["WHAT_WENT_WELL", "WHAT_DID_NOT_GO_WELL", "NEEDS_IMPROVEMENT"] },
+            content: { type: "string" },
+            userId: { type: "integer" },
+            retroId: { type: "integer" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+            user: {
+              type: "object",
+              description: "Included on GET /retroItems, GET /retroItems/{id}, and GET /retroItems/retro/{retroId}.",
+              properties: { id: { type: "integer" }, email: { type: "string" } },
+            },
+          },
+        },
+        RetroItemInput: {
+          type: "object",
+          required: ["itemType", "content", "userId", "retroId"],
+          properties: {
+            itemType: { type: "string", enum: ["WHAT_WENT_WELL", "WHAT_DID_NOT_GO_WELL", "NEEDS_IMPROVEMENT"] },
+            content: { type: "string" },
+            userId: { type: "integer" },
+            retroId: { type: "integer" },
           },
         },
       },

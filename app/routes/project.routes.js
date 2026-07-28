@@ -165,7 +165,7 @@ module.exports = (app) => {
    * @swagger
    * /projects/{id}/members:
    *   post:
-   *     summary: Add a user to a project (Admin only)
+   *     summary: Add a user to a project (Admin or Project Admin)
    *     tags: [Projects]
    *     parameters:
    *       - in: path
@@ -183,13 +183,13 @@ module.exports = (app) => {
    *       201:
    *         description: Project member created.
    *       400:
-   *         description: userId or projectRole missing from request body.
+   *         description: userId or projectRole missing from request body, or this user is already a member of the project.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
    *       403:
-   *         description: Admin privileges required.
+   *         description: Admin or Project Admin privileges required.
    */
   router.post("/projects/:id/members", [authenticateRoute, isProjectAdmin], Project.addProjectMember);
 
@@ -197,7 +197,14 @@ module.exports = (app) => {
    * @swagger
    * /projects/{id}/members:
    *   put:
-   *     summary: Update a member's project role (Admin only)
+   *     summary: Update a member's project role (Admin, or Project Admin updating a Developer)
+   *     description: >
+   *       A non-Admin cannot update their own role, and cannot update someone
+   *       who is currently PROJECT_ADMIN — both require a true Admin. NOTE:
+   *       this checks the target's CURRENT role only, not the role being
+   *       requested — a non-Admin Project Admin can currently promote a
+   *       Developer straight to PROJECT_ADMIN. Confirm with your team whether
+   *       that's intentional.
    *     tags: [Projects]
    *     parameters:
    *       - in: path
@@ -213,7 +220,7 @@ module.exports = (app) => {
    *             $ref: '#/components/schemas/ProjectMemberInput'
    *     responses:
    *       200:
-   *         description: Project role updated.
+   *         description: Project role updated (also returned if the update matched but nothing changed).
    *         content:
    *           application/json:
    *             schema:
@@ -225,7 +232,11 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/Error'
    *       403:
-   *         description: Admin privileges required.
+   *         description: A non-Admin tried to update their own role, or another Project Admin's role.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       404:
    *         description: No matching project member found.
    *         content:
@@ -311,7 +322,11 @@ module.exports = (app) => {
    * @swagger
    * /projects/{id}/members/{userId}:
    *   delete:
-   *     summary: Remove a user from a project (Admin only)
+   *     summary: Remove a user from a project (Admin, or Project Admin removing a Developer)
+   *     description: >
+   *       Only a true Admin can remove a member whose current projectRole is
+   *       PROJECT_ADMIN — this applies even if that Project Admin is removing
+   *       themselves. Matches the same restriction enforced in the UI.
    *     tags: [Projects]
    *     parameters:
    *       - in: path
@@ -332,7 +347,11 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/Message'
    *       403:
-   *         description: Admin privileges required.
+   *         description: A non-Admin tried to remove a Project Admin.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       404:
    *         description: No matching project member found.
    *         content:

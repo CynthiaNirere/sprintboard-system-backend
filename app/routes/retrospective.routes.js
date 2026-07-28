@@ -9,15 +9,15 @@ module.exports = (app) => {
    * @swagger
    * tags:
    *   name: Retros
-   *   description: Retros
+   *   description: Sprint retrospectives
    */
 
   /**
    * @swagger
    * /retros:
    *   post:
-   *     summary: Create a new retro (Admin only)
-   *     description: '`createdBy` is set automatically from the authenticated user — do not send it.'
+   *     summary: Create a new retro
+   *     description: Callable by any authenticated user — this route is not admin-restricted.
    *     tags: [Retros]
    *     requestBody:
    *       required: true
@@ -33,13 +33,13 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/Retro'
    *       400:
-   *         description: Name missing.
+   *         description: title, status, or sprintId missing.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
-   *       403:
-   *         description: Admin privileges required.
+   *       401:
+   *         description: Not authenticated.
    */
   router.post("/retros/", [authenticateRoute], Retro.create);
 
@@ -49,15 +49,16 @@ module.exports = (app) => {
    *   get:
    *     summary: Retrieve all retros
    *     description: >
-   *       Supports a `name` query parameter (partial match). Each retro
-   *       includes its sprints, ticket ids, board statuses, and repositories.
+   *       Supports a `title` query parameter (partial match). Each retro
+   *       includes its sprint (id/name) and its retrospective items, each
+   *       with the authoring user's id/email.
    *     tags: [Retros]
    *     parameters:
    *       - in: query
-   *         name: name
+   *         name: title
    *         schema:
    *           type: string
-   *         description: Partial match filter on retro name.
+   *         description: Partial match filter on retro title.
    *     responses:
    *       200:
    *         description: Array of retros.
@@ -77,7 +78,7 @@ module.exports = (app) => {
    * /retros/{id}:
    *   get:
    *     summary: Retrieve a retro by id
-   *     description: Includes board statuses and repositories.
+   *     description: Includes the sprint (id/name) and retrospective items with author info.
    *     tags: [Retros]
    *     parameters:
    *       - in: path
@@ -99,36 +100,43 @@ module.exports = (app) => {
 
   /**
    * @swagger
-   * /retros/{id}:
+   * /retros/sprint/{sprintId}:
    *   get:
-   *     summary: retro for a sprint
-   *     description: Includes retroItems and user
+   *     summary: Retrieve the retro for a given sprint
+   *     description: >
+   *       Same includes as GET /retros/{id} (sprint + retrospective items with
+   *       author info). Returns 404 if this sprint has no retro yet.
    *     tags: [Retros]
    *     parameters:
    *       - in: path
-   *         name: id
+   *         name: sprintId
    *         required: true
    *         schema:
    *           type: integer
    *     responses:
    *       200:
-   *         description: The retro.
+   *         description: The retro for this sprint.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Retro'
    *       401:
    *         description: Not authenticated.
+   *       404:
+   *         description: No retro exists yet for this sprint.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
-  
   router.get("/retros/sprint/:sprintId", authenticateRoute, Retro.findSprintRetro);
-
 
   /**
    * @swagger
    * /retros/{id}:
    *   put:
-   *     summary: Update a retro by id 
+   *     summary: Update a retro by id
+   *     description: Callable by any authenticated user — this route is not admin-restricted.
    *     tags: [Retros]
    *     parameters:
    *       - in: path
@@ -149,8 +157,8 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
-   *       403:
-   *         description: 
+   *       401:
+   *         description: Not authenticated.
    */
   router.put("/retros/:id", [authenticateRoute], Retro.update);
 
