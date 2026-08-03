@@ -1,6 +1,8 @@
 const db = require("../models");
 const Sprint = db.sprint;
 const Op = db.Sequelize.Op;
+const UserActivityLog = db.userActivityLog;
+const { LogActions } = require("../config/userActivityLogActions");
 
 // Create and Save a Sprint
 exports.create = async (req, res) => {
@@ -34,6 +36,21 @@ exports.create = async (req, res) => {
 
   try {
     const data = await Sprint.create(sprint);
+    const requestedById = req.userId;
+
+    // Log the action to the user activity log
+    try {
+      await UserActivityLog.create({
+        userId: requestedById,
+        action: LogActions.SPRINT_CREATED,
+        detail: ` created sprint ${sprint.name}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+    } catch (error) {
+      console.log("Error writing SPRINT_CREATED action to User Activity Log: ", error);
+    }
+
     res.send(data);
   } catch (err) {
     res.status(500).send({
@@ -73,6 +90,21 @@ exports.createRecurring = async (req, res) => {
 
   try {
     const data = await Sprint.bulkCreate(sprints);
+    const requestedById = req.userId;
+
+    // Log the action to the user activity log
+    try {
+      await UserActivityLog.create({
+        userId: requestedById,
+        action: LogActions.SPRINT_CREATED,
+        detail: ` created recurring sprints for ${name}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+    } catch (error) {
+      console.log("Error writing SPRINT_CREATED action to User Activity Log: ", error);
+    }
+
     res.send(data);
   } catch (err) {
     res.status(500).send({
@@ -157,12 +189,28 @@ exports.findOne = async (req, res) => {
 // Update a Sprint by the id in the request
 exports.update = async (req, res) => {
   const id = req.params.id;
+  const sprint = await Sprint.findByPk(id);
 
   try {
     const num = await Sprint.update(req.body, {
       where: { id: id },
     });
     if (num == 1) {
+      const requestedById = req.userId;
+
+      // Log the action to the user activity log
+      try {
+        await UserActivityLog.create({
+          userId: requestedById,
+          action: LogActions.SPRINT_UPDATED,
+          detail: ` updated sprint ${sprint.name}`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing SPRINT_UPDATED action to User Activity Log: ", error);
+      }
+
       res.send({
         message: "Sprint was updated successfully.",
       });
@@ -181,12 +229,28 @@ exports.update = async (req, res) => {
 // Delete a Sprint with the specified id in the request
 exports.delete = async (req, res) => {
   const id = req.params.id;
+  const sprint = await Sprint.findByPk(id);
 
   try {
     const number = await Sprint.destroy({
       where: { id: id },
     });
     if (number == 1) {
+      const requestedById = req.userId;
+
+      // Log the action to the user activity log
+      try {
+        await UserActivityLog.create({
+          userId: requestedById,
+          action: LogActions.SPRINT_DELETED,
+          detail: ` deleted sprint ${sprint.name}`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing SPRINT_DELETED action to User Activity Log: ", error);
+      }
+
       res.send({
         message: "Sprint was deleted successfully!",
       });

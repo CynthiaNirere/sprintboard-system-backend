@@ -3,6 +3,8 @@ const RetroItem = db.retroItem;
 const Retro = db.retrospective;
 const User = db.user;
 const Op = db.Sequelize.Op;
+const UserActivityLog = db.userActivityLog;
+const { LogActions } = require("../config/userActivityLogActions");
 
 // Create and Save a RetroItem
 exports.create = async (req, res) => {
@@ -38,6 +40,22 @@ exports.create = async (req, res) => {
 
   try {
     const data = await RetroItem.create(retroItem);
+    const requestedById = req.userId;
+    const retro = await Retro.findByPk(retroItem.retroId);
+
+    // Log the action to the user activity log
+    try {
+      await UserActivityLog.create({
+        userId: requestedById,
+        action: LogActions.RETRO_ITEM_ADDED,
+        detail: ` created a retro item for ${retro.title}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+    } catch (error) {
+      console.log("Error writing RETRO_ITEM_ADDED action to User Activity Log: ", error);
+    }
+
     res.send(data);
   } catch (err) {
     res.status(500).send({

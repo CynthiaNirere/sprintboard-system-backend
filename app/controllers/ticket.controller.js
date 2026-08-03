@@ -1,6 +1,8 @@
 const db = require("../models");
 const Ticket = db.ticket;
 const Op = db.Sequelize.Op;
+const UserActivityLog = db.userActivityLog;
+const { LogActions } = require("../config/userActivityLogActions");
 
 // Create and Save a Ticket
 exports.create = async (req, res) => {
@@ -29,6 +31,21 @@ exports.create = async (req, res) => {
 
   try {
     const data = await Ticket.create(ticket);
+    const requestedById = req.userId;
+
+    // Log the action to the user activity log
+    try {
+      await UserActivityLog.create({
+        userId: requestedById,
+        action: LogActions.TICKET_CREATED,
+        detail: ` created ticket "${ticket.title}"`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+    } catch (error) {
+      console.log("Error writing TICKET_CREATED action to User Activity Log: ", error);
+    }
+
     res.send(data);
   } catch (err) {
     res.status(500).send({
@@ -127,6 +144,22 @@ exports.update = async (req, res) => {
       where: { id: id },
     });
     if (num == 1) {
+      const requestedById = req.userId;
+      const ticket = await Ticket.findByPk(id);
+
+      // Log the action to the user activity log
+      try {
+        await UserActivityLog.create({
+          userId: requestedById,
+          action: LogActions.TICKET_UPDATED,
+          detail: ` updated ticket "${ticket.title}"`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing TICKET_UPDATED action to User Activity Log: ", error);
+      }
+
       res.send({
         message: "Ticket was updated successfully.",
       });
@@ -145,12 +178,27 @@ exports.update = async (req, res) => {
 // Delete a Ticket with the specified id in the request
 exports.delete = async (req, res) => {
   const id = req.params.id;
+  const ticket = await Ticket.findByPk(id);
 
   try {
     const number = await Ticket.destroy({
       where: { id: id },
     });
     if (number == 1) {
+      const requestedById = req.userId;
+      // Log the action to the user activity log
+      try {
+        await UserActivityLog.create({
+          userId: requestedById,
+          action: LogActions.TICKET_DELETED,
+          detail: ` deleted ticket "${ticket.title}"`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing TICKET_DELETED action to User Activity Log: ", error);
+      }
+
       res.send({
         message: "Ticket was deleted successfully!",
       });

@@ -4,6 +4,8 @@ const Project = db.project;
 const Session = db.session;
 const Op = db.Sequelize.Op;
 const { encrypt, getSalt, hashPassword } = require("../authentication/crypto");
+const UserActivityLog = db.userActivityLog;
+const { LogActions } = require("../config/userActivityLogActions");
 
 // Create and Save a new User (registration)
 exports.create = async (req, res) => {
@@ -84,6 +86,22 @@ exports.create = async (req, res) => {
         token: token,
         sessionExpireDate: session.expirationDate,
       };
+
+      const requestedById = req.userId;
+
+      // Log the action to the user activity log
+      try {
+        await UserActivityLog.create({
+          userId: requestedById,
+          action: LogActions.USER_CREATED,
+          detail: ` created a new user account for ${userInfo.firstName} ${userInfo.lastName}`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing USER_CREATED action to User Activity Log: ", error);
+      }
+
       res.send(userInfo);
     } catch (err) {
       console.log(err);
@@ -165,6 +183,7 @@ exports.findByEmail = async (req, res) => {
 // Update a User by the id in the request
 exports.update = async (req, res) => {
   const id = req.params.id;
+  const requestedById = req.userId;
 
   const { username, firstName, lastName, email, githubAccount, globalRole } = req.body;
   const updateData = { username, firstName, lastName, email, githubAccount, globalRole };
@@ -175,6 +194,27 @@ exports.update = async (req, res) => {
       where: { id: id },
     });
     if (number == 1) {
+      const formattedRole = () => {
+        let formattedGlobalRole = globalRole.toLowerCase();
+        for (let i = 0; i < formattedGlobalRole.length; i++) {
+          formattedGlobalRole[i] = formattedGlobalRole[i].charAt(0).toUpperCase() + formattedGlobalRole[i].substring(1);
+        }
+        return formattedGlobalRole;
+      }
+
+      // Log the action to the user activity log
+      try {
+        await UserActivityLog.create({
+          userId: requestedById,
+          action: LogActions.GLOBAL_ROLE_CHANGED,
+          detail: ` changed ${firstName} ${lastName}'s global role to ${formattedRole()}`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing GLOBAL_ROLE_CHANGED action to User Activity Log: ", error);
+      }
+
       res.send({
         message: "User was updated successfully.",
       });
