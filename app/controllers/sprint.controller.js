@@ -36,7 +36,6 @@ exports.create = async (req, res) => {
 
   try {
     const data = await Sprint.create(sprint);
-    console.log("Created:", data.toJSON());
 
     const requestedById = req.userId;
 
