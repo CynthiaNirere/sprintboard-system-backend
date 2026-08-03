@@ -1,4 +1,5 @@
 const {Op} = require('sequelize');
+const {Op} = require('sequelize');
 module.exports = (sequelize, Sequelize, DataTypes) => {
   const Sprint = sequelize.define("sprint", {
     name: {
@@ -24,6 +25,7 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
 
     hooks: {
       beforeCreate: async (sprint, options) => {
+        console.log(sprint);
         const sprintOverlap = await Sprint.findOne({
           where: {
             projectId: sprint.projectId,
