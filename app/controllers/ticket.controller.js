@@ -101,6 +101,23 @@ exports.findTicketsForASprint = async (req, res) => {
   }
 };
 
+// Find tickets for a user
+exports.findTicketsForAUser = async (req, res) => {
+  const userId = req.params.id;
+
+  try {
+    const data = await Ticket.findAll(
+      {
+        where: {assigneeId: userId},
+      });
+    res.send(data);
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || "Error retrieving tickets for user with id=" + userId,
+    });
+  }
+};
+
 // Update a Ticket by the id in the request
 exports.update = async (req, res) => {
   const id = req.params.id;

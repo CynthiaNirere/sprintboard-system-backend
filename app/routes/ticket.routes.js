@@ -119,6 +119,7 @@ module.exports = (app) => {
    */
   router.get("/ticket/sprint/:id", authenticateRoute, Ticket.findTicketsForASprint);
 
+  router.get("/ticket/user/:id", authenticateRoute, Ticket.findTicketsForAUser);
   /**
    * @swagger
    * /ticket/backlog:
