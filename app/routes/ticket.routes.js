@@ -319,7 +319,6 @@ module.exports = (app) => {
    *   put:
    *     summary: Move a ticket into a sprint
    *     description: Sets the ticket's sprintId, removing it from the backlog.
-   *     description: Sets the ticket's sprintId, removing it from the backlog.
    *     tags: [Tickets]
    *     parameters:
    *       - in: path
@@ -357,7 +356,6 @@ module.exports = (app) => {
    *   put:
    *     summary: Return a ticket to the backlog
    *     description: Clears the ticket's sprintId.
-   *     description: Clears the ticket's sprintId.
    *     tags: [Tickets]
    *     parameters:
    *       - in: path
@@ -373,6 +371,5 @@ module.exports = (app) => {
    *         description: Not authenticated.
    */
   router.put("/ticket/:id/unassign", authenticateRoute, Ticket.removeFromSprint);
-  app.use("/sprintboardapi", router);
   app.use("/sprintboardapi", router);
 };

@@ -4,6 +4,10 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: false,
     },
+    detail: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
     ipAddress: {
       type: DataTypes.STRING,
       allowNull: true,

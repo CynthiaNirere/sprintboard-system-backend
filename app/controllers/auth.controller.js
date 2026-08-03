@@ -4,6 +4,8 @@ const User = db.user;
 const Session = db.session;
 const Op = db.Sequelize.Op;
 const { encrypt, decrypt } = require("../authentication/crypto");
+const UserActivityLog = db.userActivityLog;
+const { LogActions } = require("../config/userActivityLogActions");
 
 exports.login = async (req, res) => {
   let { userId } = await authenticate(req, res, "credentials");
@@ -34,6 +36,20 @@ exports.login = async (req, res) => {
         token: token,
         sessionExpireDate: session.expirationDate,
       };
+
+      // Log the action to the user activity log
+      try {
+        await UserActivityLog.create({
+          userId: user.id,
+          action: LogActions.LOGIN,
+          detail: ` logged in`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing LOGIN action to User Activity Log: ", error);
+      }
+
       res.send(userInfo);
     } catch (err) {
       console.error(err);
@@ -53,7 +69,23 @@ exports.logout = async (req, res) => {
       return res.send({ message: "Already logged out." });
     }
     try {
+      const session = await Session.findByPk(sessionId);
+      const user = await User.findByPk(session.userId);
       await Session.destroy({ where: { id: sessionId } });
+
+      // Log the action to the user activity log
+      try {
+        await UserActivityLog.create({
+          userId: user.id,
+          action: LogActions.LOGOUT,
+          detail: ` logged out`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing LOGOUT action to User Activity Log: ", error);
+      }
+
       return res.send({ message: "Logged out successfully." });
     } catch (error) {
       console.log(error);
