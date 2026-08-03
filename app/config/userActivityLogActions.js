@@ -1,6 +1,7 @@
 const LogActions = {
   LOGIN: "Login",
   LOGOUT: "Logout",
+  USER_CREATED: "User created",
   GLOBAL_ROLE_CHANGED: "Global role changed",
   PROJECT_ROLE_CHANGED: "Project role changed",
   PROJECT_CREATED: "Project created",
@@ -11,6 +12,7 @@ const LogActions = {
   TICKET_UPDATED: "Ticket updated",
   TICKET_DELETED: "Sprint deleted",
   SPRINT_CREATED: "Sprint created",
+  SPRINT_UPDATED: "Sprint updated",
   SPRINT_DELETED: "Sprint deleted",
   GITHUB_REPO_LINKED: "GitHub repo linked",
   BOARD_STATUS_UPDATED: "Board status updated",

@@ -2,6 +2,8 @@ const db = require("../models");
 const Retro = db.retrospective;
 const User = db.user;
 const Op = db.Sequelize.Op;
+const UserActivityLog = db.userActivityLog;
+const { LogActions } = require("../config/userActivityLogActions");
 
 // Create and Save a Retro
 exports.create = async (req, res) => {
@@ -32,6 +34,22 @@ exports.create = async (req, res) => {
 
   try {
     const data = await Retro.create(retro);
+    const requestedById = req.userId;
+    const sprint = await db.sprint.findByPk(retro.sprintId);
+
+    // Log the action to the user activity log
+    try {
+      await UserActivityLog.create({
+        userId: requestedById,
+        action: LogActions.RETRO_CREATED,
+        detail: ` created a retro for ${sprint.name}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+    } catch (error) {
+      console.log("Error writing RETRO_CREATED action to User Activity Log: ", error);
+    }
+
     res.send(data);
   } catch (err) {
     res.status(500).send({
