@@ -34,7 +34,6 @@ exports.create = async (req, res) => {
 
   try {
     const data = await Sprint.create(sprint);
-    console.log("Created:", data.toJSON());
 
     res.send(data);
   } catch (err) {
