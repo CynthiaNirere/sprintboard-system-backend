@@ -3,6 +3,8 @@ const Ticket = db.ticket;
 const Op = db.Sequelize.Op;
 const UserActivityLog = db.userActivityLog;
 const { LogActions } = require("../config/userActivityLogActions");
+const UserActivityLog = db.userActivityLog;
+const { LogActions } = require("../config/userActivityLogActions");
 
 // Create and Save a Ticket
 exports.create = async (req, res) => {
@@ -31,6 +33,21 @@ exports.create = async (req, res) => {
 
   try {
     const data = await Ticket.create(ticket);
+    const requestedById = req.userId;
+
+    // Log the action to the user activity log
+    try {
+      await UserActivityLog.create({
+        userId: requestedById,
+        action: LogActions.TICKET_CREATED,
+        detail: ` created ticket "${ticket.title}"`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+    } catch (error) {
+      console.log("Error writing TICKET_CREATED action to User Activity Log: ", error);
+    }
+
     const requestedById = req.userId;
 
     // Log the action to the user activity log
@@ -145,9 +162,10 @@ exports.update = async (req, res) => {
     });
     if (num == 1) {
       const requestedById = req.userId;
-      
+      const ticket = await Ticket.findByPk(id);
+
+      // Log the action to the user activity log
       try {
-        const ticket = await Ticket.findByPk(id);
         await UserActivityLog.create({
           userId: requestedById,
           action: LogActions.TICKET_UPDATED,
