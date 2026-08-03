@@ -210,7 +210,7 @@ exports.assignToSprint = async (req, res) => {
   }
 };
 
-// Send a ticket back to the backlog
+// Send a ticket back to the backlog with all info displaying
 exports.removeFromSprint = async (req, res) => {
   const id = req.params.id;
   try {
