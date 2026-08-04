@@ -42,13 +42,21 @@ exports.create = async (req, res) => {
     const data = await RetroItem.create(retroItem);
     const requestedById = req.userId;
     const retro = await Retro.findByPk(retroItem.retroId);
+    const sprint = await db.sprint.findByPk(retro.sprintId);
+    const formattedRetroItemType = () => {
+      let splitString = retroItem.itemType.toLowerCase().split('_');
+      for (let i = 0; i < splitString.length; i++) {
+        splitString[i] = splitString[i].charAt(0).toUpperCase() + splitString[i].substring(1);
+      }
+      return splitString.join(' ');
+    }
 
     // Log the action to the user activity log
     try {
       await UserActivityLog.create({
         userId: requestedById,
         action: LogActions.RETRO_ITEM_ADDED,
-        detail: ` created a retro item for ${retro.title}`,
+        detail: ` added a "${formattedRetroItemType()}" item to the sprint ${sprint.name} retro`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
       });
