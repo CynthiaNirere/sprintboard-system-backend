@@ -1,9 +1,10 @@
 const db = require("../models");
+const { authenticate } = require("../authentication/authentication");
 const User = db.user;
 const Project = db.project;
 const Session = db.session;
 const Op = db.Sequelize.Op;
-const { encrypt, getSalt, hashPassword } = require("../authentication/crypto");
+const { encrypt, decrypt, getSalt, hashPassword } = require("../authentication/crypto");
 const UserActivityLog = db.userActivityLog;
 const { LogActions } = require("../config/userActivityLogActions");
 
@@ -87,14 +88,34 @@ exports.create = async (req, res) => {
         sessionExpireDate: session.expirationDate,
       };
 
-      const requestedById = req.userId;
-
       // Log the action to the user activity log
       try {
+        let auth = req.get("authorization");
+        let loggedUserId = null;
+        let loggedDetail = "";
+
+        if (auth != null && auth.startsWith("Bearer")) {
+          let token = auth.slice(7);
+          let sessionId = await decrypt(token);
+          if (sessionId != null) {
+            const adminSession = await Session.findByPk(sessionId);
+
+            if (adminSession) {
+              loggedUserId = adminSession.userId;
+              loggedDetail = ` created a new user account for ${userInfo.firstName} ${userInfo.lastName}`;
+            }
+          }
+        }
+
+        if (!loggedUserId) {
+          loggedUserId = userId;
+          loggedDetail = ` created a new account.`;
+        }     
+
         await UserActivityLog.create({
-          userId: requestedById,
+          userId: loggedUserId,
           action: LogActions.USER_CREATED,
-          detail: ` created a new user account for ${userInfo.firstName} ${userInfo.lastName}`,
+          detail: loggedDetail,
           ipAddress: req.ip,
           userAgent: req.headers['user-agent']
         });
@@ -190,24 +211,43 @@ exports.update = async (req, res) => {
   Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
 
   try {
+    // Check if only 1 global role of "ADMIN" remains in the app, prevent the last occurrence of Admin being updated to "USER"
+    if (updateData.globalRole === "USER") {
+      try {
+        const userToUpdate = await User.findByPk(id);
+
+        if (userToUpdate.globalRole === "ADMIN") {
+          const usersWithAdminCount = await User.count({
+            where: {
+              globalRole: "ADMIN"
+            }
+          });
+
+          if (usersWithAdminCount <= 1) {
+            return res.status(400).send({
+              message: "Cannot update global role of ADMIN to USER. The workspace must have at least one active Admin."
+            });
+          }
+        }
+      } catch (adminError) {
+          console.log("Error! Cannot update last remaining Admin role to User: ", adminError);
+          return res.status(500).send({ message: "Error updating global role of ADMIN to USER."});
+      }
+    }
+
     const number = await User.update(updateData, {
       where: { id: id },
     });
     if (number == 1) {
-      const formattedRole = () => {
-        let formattedGlobalRole = globalRole.toLowerCase();
-        for (let i = 0; i < formattedGlobalRole.length; i++) {
-          formattedGlobalRole[i] = formattedGlobalRole[i].charAt(0).toUpperCase() + formattedGlobalRole[i].substring(1);
-        }
-        return formattedGlobalRole;
-      }
+      let formattedGlobalRole = updateData.globalRole.toLowerCase();
+      formattedGlobalRole = formattedGlobalRole.charAt(0).toUpperCase() + formattedGlobalRole.substring(1);
 
       // Log the action to the user activity log
       try {
         await UserActivityLog.create({
           userId: requestedById,
           action: LogActions.GLOBAL_ROLE_CHANGED,
-          detail: ` changed ${firstName} ${lastName}'s global role to ${formattedRole()}`,
+          detail: ` changed ${firstName} ${lastName}'s global role to ${formattedGlobalRole}`,
           ipAddress: req.ip,
           userAgent: req.headers['user-agent']
         });
