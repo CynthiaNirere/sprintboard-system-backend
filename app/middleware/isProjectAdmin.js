@@ -9,7 +9,7 @@ const isProjectAdmin = async (req, res, next) => {
       return next();
     }
 
-    const projectId = req.params.id;
+    const projectId = req.params.projectId;
     const projectMember = await ProjectMember.findOne({
       where: {
         projectId: projectId,
