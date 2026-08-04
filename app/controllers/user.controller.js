@@ -1,9 +1,11 @@
 const db = require("../models");
 const { authenticate } = require("../authentication/authentication");
+const { authenticate } = require("../authentication/authentication");
 const User = db.user;
 const Project = db.project;
 const Session = db.session;
 const Op = db.Sequelize.Op;
+const { encrypt, decrypt, getSalt, hashPassword } = require("../authentication/crypto");
 const { encrypt, decrypt, getSalt, hashPassword } = require("../authentication/crypto");
 const UserActivityLog = db.userActivityLog;
 const { LogActions } = require("../config/userActivityLogActions");
@@ -112,9 +114,32 @@ exports.create = async (req, res) => {
           loggedDetail = ` created a new account.`;
         }     
 
+        let auth = req.get("authorization");
+        let loggedUserId = null;
+        let loggedDetail = "";
+
+        if (auth != null && auth.startsWith("Bearer")) {
+          let token = auth.slice(7);
+          let sessionId = await decrypt(token);
+          if (sessionId != null) {
+            const adminSession = await Session.findByPk(sessionId);
+
+            if (adminSession) {
+              loggedUserId = adminSession.userId;
+              loggedDetail = ` created a new user account for ${userInfo.firstName} ${userInfo.lastName}`;
+            }
+          }
+        }
+
+        if (!loggedUserId) {
+          loggedUserId = userId;
+          loggedDetail = ` created a new account.`;
+        }     
+
         await UserActivityLog.create({
           userId: loggedUserId,
           action: LogActions.USER_CREATED,
+          detail: loggedDetail,
           detail: loggedDetail,
           ipAddress: req.ip,
           userAgent: req.headers['user-agent']

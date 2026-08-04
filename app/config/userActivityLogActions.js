@@ -10,7 +10,7 @@ const LogActions = {
   MEMBER_REMOVED: "Member removed",
   TICKET_CREATED: "Ticket created",
   TICKET_UPDATED: "Ticket updated",
-  TICKET_DELETED: "Sprint deleted",
+  TICKET_DELETED: "Ticket deleted",
   SPRINT_CREATED: "Sprint created",
   SPRINT_UPDATED: "Sprint updated",
   SPRINT_DELETED: "Sprint deleted",
