@@ -1,3 +1,4 @@
+const {Op} = require('sequelize');
 module.exports = (sequelize, Sequelize, DataTypes) => {
   const Sprint = sequelize.define("sprint", {
     name: {
@@ -19,8 +20,36 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
     },
   }, {
     tableName: "sprints",
-    timestamps: true
-  });
+    timestamps: true,
+
+    hooks: {
+      beforeCreate: async (sprint, options) => {
+        const sprintOverlap = await Sprint.findOne({
+          where: {
+            projectId: sprint.projectId,
+            startDate: {[Op.lte]: sprint.endDate},
+            endDate: {[Op.gte]: sprint.startDate}
+          }
+        })
+        if(sprintOverlap) {
+          throw new Error('A sprint for this project already exists during this time. ')
+        }
+      },
+      beforeUpdate: async (sprint, options) => {
+        const sprintOverlap = await Sprint.findOne({
+          where: {
+            id: {[Op.ne]: sprint.id},
+            projectId: sprint.projectId,
+            startDate: {[Op.lte]: sprint.endDate},
+            endDate: {[Op.gte]: sprint.startDate}
+          }
+        })
+        if(sprintOverlap) {
+          throw new Error('A sprint for this project already exists during this time. ')
+        }
+      }
+    }
+});
 
   return Sprint;
 };
