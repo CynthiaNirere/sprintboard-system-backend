@@ -42,7 +42,7 @@ exports.create = async (req, res) => {
   }
 };
 
-// Retrieve all Users from the database.
+// Retrieve all user activity logs from the database.
 exports.findAll = async (req, res) => {
   try {
     const data = await UserActivityLog.findAll({
@@ -52,52 +52,6 @@ exports.findAll = async (req, res) => {
   } catch (err) {
     res.status(500).send({
       message: err.message || "Some error occurred while retrieving the user activity logs.",
-    });
-  }
-};
-
-// Find a single user activity log entry with an id
-exports.findOne = async (req, res) => {
-  const userId = req.params.id;
-
-  try {
-    const data = await User.findByPk(id, {
-      attributes: { exclude: ["password", "salt"] },
-      include: [{model: db.project, include: [{model:db.sprint, as: "projectSprints"}]}],
-    });
-    if (data) {
-      res.send(data);
-    } else {
-      res.status(404).send({
-        message: `Cannot find User with id = ${id}.`,
-      });
-    }
-  } catch (err) {
-    res.status(500).send({
-      message: err.message || "Error retrieving User with id = " + id,
-    });
-  }
-};
-
-// Find a single User with an email
-exports.findByEmail = async (req, res) => {
-  const email = req.params.email;
-
-  try {
-    const data = await User.findOne({
-      where: {
-        email: email,
-      },
-      attributes: { exclude: ["password", "salt"] },
-    });
-    if (data) {
-      res.send(data);
-    } else {
-      res.status(404).send({ message: "not found" });
-    }
-  } catch (err) {
-    res.status(500).send({
-      message: err.message || "Error retrieving User with email=" + email,
     });
   }
 };
