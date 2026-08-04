@@ -203,7 +203,7 @@ exports.findProjectMembers = async (req, res) => {
 
 // Add a user to the Project Members junction table
 exports.addProjectMember = async (req, res) => {
-  const projectId = req.params.id;
+  const projectId = req.params.projectId;
   
   try {
     const userId = req.body.userId;
@@ -290,7 +290,7 @@ exports.update = async (req, res) => {
 
 // Update a user in the Project Members junction table
 exports.updateProjectMember = async (req, res) => {
-  const projectId = req.params.id;
+  const projectId = req.params.projectId;
   const userId = req.body.userId;
   const projectRole = req.body.projectRole;
   const requestedById = req.userId;
@@ -426,7 +426,7 @@ exports.deleteAll = async (req, res) => {
 
 // Delete a user from the Project Members junction table
 exports.deleteProjectMember = async (req, res) => {
-  const projectId = req.params.id;
+  const projectId = req.params.projectId;
   const userId = req.params.userId;
   const requestedById = req.userId;
 
