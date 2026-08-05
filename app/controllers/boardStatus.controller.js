@@ -79,6 +79,25 @@ exports.findOne = async (req, res) => {
   }
 };
 
+// Find a single boardStatus with a column order
+exports.findOneByColumn = async (req, res) => {
+  const projectId = req.params.projectId;
+  const columnOrder = req.params.columnOrder;
+  try {
+    const data = await BoardStatus.findOne({
+      where: {
+        projectId: projectId,
+        columnOrder: columnOrder
+      }
+    });
+    res.send(data);
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || "Error retrieving boardStatus with columnOrder=" + columnOrder,
+    });
+  }
+};
+
 // Update a boardStatus by the id in the request
 exports.update = async (req, res) => {
   const id = req.params.id;

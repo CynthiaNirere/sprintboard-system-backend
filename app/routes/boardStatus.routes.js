@@ -86,6 +86,8 @@ module.exports = (app) => {
    */
   router.get("/boardStatus/:id", authenticateRoute, BoardStatus.findOne);
 
+  router.get("/boardStatus/:projectId/column/:columnOrder", authenticateRoute, BoardStatus.findOneByColumn);
+
   /**
    * @swagger
    * /boardStatus/project/{id}:
