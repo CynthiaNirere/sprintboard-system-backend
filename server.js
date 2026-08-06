@@ -61,8 +61,7 @@ require("./app/routes/ticket.routes.js")(app);
 require("./app/routes/retrospective.routes.js")(app);
 require("./app/routes/retrospectiveItems.routes.js")(app);
 require("./app/routes/chat.routes.js")(app);
-
-
+require("./app/routes/userActivityLog.routes.js")(app);
 
 // set port, listen for requests
 const PORT = process.env.PORT || 3200;
