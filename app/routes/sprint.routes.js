@@ -2,6 +2,7 @@ module.exports = (app) => {
   const Sprint = require("../controllers/sprint.controller.js");
   const { authenticateRoute } = require("../authentication/authentication");
   const isAdmin = require("../middleware/isAdmin");
+  const isProjectAdmin = require("../middleware/isProjectAdmin.js");
 
   var router = require("express").Router();
 
@@ -40,7 +41,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin privileges required.
    */
-  router.post("/sprints/", [authenticateRoute, isAdmin], Sprint.create);
+  router.post("/project/:projectId/sprints/", [authenticateRoute, isProjectAdmin], Sprint.create);
 
   /**
    * @swagger
@@ -72,7 +73,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin privileges required.
    */
-  router.post("/sprints/recurring", [authenticateRoute, isAdmin], Sprint.createRecurring);
+  router.post("/project/:projectId/sprints/recurring", [authenticateRoute, isProjectAdmin], Sprint.createRecurring);
 
   /**
    * @swagger
@@ -152,7 +153,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin privileges required.
    */
-  router.put("/sprints/:id", [authenticateRoute, isAdmin], Sprint.update);
+  router.put("/project/:projectId/sprints/:id", [authenticateRoute, isProjectAdmin], Sprint.update);
 
   /**
    * @swagger
@@ -176,7 +177,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin privileges required.
    */
-  router.delete("/sprints/:id", [authenticateRoute, isAdmin], Sprint.delete);
+  router.delete("/project/:projectId/sprints/:id", [authenticateRoute, isProjectAdmin], Sprint.delete);
 
   /**
    * @swagger

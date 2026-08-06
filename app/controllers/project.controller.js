@@ -3,6 +3,8 @@ const User = db.user;
 const Project = db.project;
 const ProjectMember = db.projectMember;
 const Op = db.Sequelize.Op;
+const UserActivityLog = db.userActivityLog;
+const { LogActions } = require("../config/userActivityLogActions");
 
 // Create and Save a Project
 exports.create = async (req, res) => {
@@ -29,6 +31,21 @@ exports.create = async (req, res) => {
       columnOrder: 1,
       projectId: data.id,
     });
+
+    // Log the action to the user activity log
+    try {
+      const user = await User.findByPk(req.userId);
+
+      await UserActivityLog.create({
+        userId: req.userId,
+        action: LogActions.PROJECT_CREATED,
+        detail: ` created project ${data.name}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+    } catch (error) {
+      console.log("Error writing PROJECT_CREATED action to User Activity Log: ", error);
+    }
 
     res.send(data);
   } catch (err) {
@@ -186,7 +203,7 @@ exports.findProjectMembers = async (req, res) => {
 
 // Add a user to the Project Members junction table
 exports.addProjectMember = async (req, res) => {
-  const projectId = req.params.id;
+  const projectId = req.params.projectId;
   
   try {
     const userId = req.body.userId;
@@ -217,6 +234,23 @@ exports.addProjectMember = async (req, res) => {
 
     try {
       const data = await ProjectMember.create(newProjectMember);
+      const project = await Project.findByPk(projectId);
+      const addedMember = await User.findByPk(userId);
+      const currentUser = await User.findByPk(req.userId);
+
+      // Log the action to the user activity log
+      try {
+        await UserActivityLog.create({
+          userId: currentUser.id,
+          action: LogActions.MEMBER_ADDED,
+          detail: ` added ${addedMember.firstName} ${addedMember.lastName} to ${project.name}`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing MEMBER_ADDED action to User Activity Log: ", error);
+      }
+
       res.status(201).send(data);
     } catch (err) {
       res.status(500).send({
@@ -256,7 +290,7 @@ exports.update = async (req, res) => {
 
 // Update a user in the Project Members junction table
 exports.updateProjectMember = async (req, res) => {
-  const projectId = req.params.id;
+  const projectId = req.params.projectId;
   const userId = req.body.userId;
   const projectRole = req.body.projectRole;
   const requestedById = req.userId;
@@ -297,6 +331,30 @@ exports.updateProjectMember = async (req, res) => {
     });
 
     if (num == 1 || num == 0) {
+      // Log the action to the user activity log
+      try {
+        const project = await Project.findByPk(projectId);
+        const updatedUser = await User.findByPk(userId);
+
+        const formattedRole = () => {
+          let splitString = projectRole.toLowerCase().split('_');
+          for (let i = 0; i < splitString.length; i++) {
+            splitString[i] = splitString[i].charAt(0).toUpperCase() + splitString[i].substring(1);
+          }
+          return splitString.join(' ');
+        }
+
+        await UserActivityLog.create({
+          userId: requestedById,
+          action: LogActions.PROJECT_ROLE_CHANGED,
+          detail: ` changed ${updatedUser.firstName} ${updatedUser.lastName}'s project role to ${formattedRole()} on ${project.name}`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing PROJECT_ROLE_CHANGED action to User Activity Log: ", error);
+      }
+
       res.status(200).send({
         message: "Project role was updated successfully!",
       });
@@ -315,12 +373,27 @@ exports.updateProjectMember = async (req, res) => {
 // Delete a Project with the specified id in the request
 exports.delete = async (req, res) => {
   const id = req.params.id;
+  const project = await Project.findByPk(id);
+  const user = await User.findByPk(req.userId);
 
   try {
     const number = await Project.destroy({
       where: { id: id },
     });
     if (number == 1) {
+      // Log the action to the user activity log
+      try {
+        await UserActivityLog.create({
+          userId: user.id,
+          action: LogActions.PROJECT_DELETED,
+          detail: ` deleted project ${project.name}`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing PROJECT_DELETED action to User Activity Log: ", error);
+      }
+
       res.send({
         message: "Project was deleted successfully!",
       });
@@ -353,7 +426,7 @@ exports.deleteAll = async (req, res) => {
 
 // Delete a user from the Project Members junction table
 exports.deleteProjectMember = async (req, res) => {
-  const projectId = req.params.id;
+  const projectId = req.params.projectId;
   const userId = req.params.userId;
   const requestedById = req.userId;
 
@@ -384,6 +457,22 @@ exports.deleteProjectMember = async (req, res) => {
     });
 
     if (num == 1) {
+      // Log the action to the user activity log
+      try {
+        const project = await Project.findByPk(projectId);
+        const deletedMember = await User.findByPk(userId);
+
+        await UserActivityLog.create({
+          userId: requestedById,
+          action: LogActions.MEMBER_REMOVED,
+          detail: ` removed ${deletedMember.firstName} ${deletedMember.lastName} from ${project.name}`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing MEMBER_REMOVED action to User Activity Log: ", error);
+      }    
+
       res.status(200).send({
         message: "Project member was deleted successfully!",
       });

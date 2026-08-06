@@ -3,6 +3,8 @@ const RetroItem = db.retroItem;
 const Retro = db.retrospective;
 const User = db.user;
 const Op = db.Sequelize.Op;
+const UserActivityLog = db.userActivityLog;
+const { LogActions } = require("../config/userActivityLogActions");
 
 // Create and Save a RetroItem
 exports.create = async (req, res) => {
@@ -38,6 +40,30 @@ exports.create = async (req, res) => {
 
   try {
     const data = await RetroItem.create(retroItem);
+    const requestedById = req.userId;
+    const retro = await Retro.findByPk(retroItem.retroId);
+    const sprint = await db.sprint.findByPk(retro.sprintId);
+    const formattedRetroItemType = () => {
+      let splitString = retroItem.itemType.toLowerCase().split('_');
+      for (let i = 0; i < splitString.length; i++) {
+        splitString[i] = splitString[i].charAt(0).toUpperCase() + splitString[i].substring(1);
+      }
+      return splitString.join(' ');
+    }
+
+    // Log the action to the user activity log
+    try {
+      await UserActivityLog.create({
+        userId: requestedById,
+        action: LogActions.RETRO_ITEM_ADDED,
+        detail: ` added a "${formattedRetroItemType()}" item to the sprint ${sprint.name} retro`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+    } catch (error) {
+      console.log("Error writing RETRO_ITEM_ADDED action to User Activity Log: ", error);
+    }
+
     res.send(data);
   } catch (err) {
     res.status(500).send({

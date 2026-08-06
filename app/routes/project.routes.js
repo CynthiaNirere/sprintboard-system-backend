@@ -191,7 +191,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin or Project Admin privileges required.
    */
-  router.post("/projects/:id/members", [authenticateRoute, isProjectAdmin], Project.addProjectMember);
+  router.post("/projects/:projectId/members", [authenticateRoute, isProjectAdmin], Project.addProjectMember);
 
   /**
    * @swagger
@@ -244,7 +244,7 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  router.put("/projects/:id/members", [authenticateRoute, isProjectAdmin], Project.updateProjectMember);
+  router.put("/projects/:projectId/members", [authenticateRoute, isProjectAdmin], Project.updateProjectMember);
 
   /**
    * @swagger
@@ -359,7 +359,7 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  router.delete("/projects/:id/members/:userId", [authenticateRoute, isProjectAdmin], Project.deleteProjectMember);
+  router.delete("/projects/:projectId/members/:userId", [authenticateRoute, isProjectAdmin], Project.deleteProjectMember);
 
   app.use("/sprintboardapi", router);
 };
