@@ -201,6 +201,23 @@ exports.findByEmail = async (req, res) => {
   }
 };
 
+// Confirms a GitHub username is both correctly formatted and belongs to a
+// real, existing account.
+async function verifyGithubAccount(username) {
+  const validFormat = /^[a-zA-Z\d](?:[a-zA-Z\d]|-(?=[a-zA-Z\d])){0,38}$/.test(username);
+  if (!validFormat) return false;
+
+  try {
+    const response = await fetch(`https://api.github.com/users/${username}`);
+    return response.ok;
+  } catch (error) {
+    // If GitHub itself is unreachable, don't block the update on that —
+    // the format already checked out, so let it through.
+    console.log("Could not reach GitHub to verify account:", error);
+    return true;
+  }
+}
+
 // Update a User by the id in the request
 exports.update = async (req, res) => {
   const id = req.params.id;
@@ -211,6 +228,16 @@ exports.update = async (req, res) => {
   Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
 
   try {
+    // Verify the GitHub account, if one was provided.
+    if (updateData.githubAccount) {
+      const isValidGithub = await verifyGithubAccount(updateData.githubAccount);
+      if (!isValidGithub) {
+        return res.status(400).send({
+          message: `"${updateData.githubAccount}" doesn't look like a real GitHub account.`,
+        });
+      }
+    }
+
     // Check if only 1 global role of "ADMIN" remains in the app, prevent the last occurrence of Admin being updated to "USER"
     if (updateData.globalRole === "USER") {
       try {
@@ -239,20 +266,22 @@ exports.update = async (req, res) => {
       where: { id: id },
     });
     if (number == 1) {
-      let formattedGlobalRole = updateData.globalRole.toLowerCase();
-      formattedGlobalRole = formattedGlobalRole.charAt(0).toUpperCase() + formattedGlobalRole.substring(1);
+      // Only log a role change if globalRole was actually part of this
+      if (updateData.globalRole) {
+        let formattedGlobalRole = updateData.globalRole.toLowerCase();
+        formattedGlobalRole = formattedGlobalRole.charAt(0).toUpperCase() + formattedGlobalRole.substring(1);
 
-      // Log the action to the user activity log
-      try {
-        await UserActivityLog.create({
-          userId: requestedById,
-          action: LogActions.GLOBAL_ROLE_CHANGED,
-          detail: ` changed ${firstName} ${lastName}'s global role to ${formattedGlobalRole}`,
-          ipAddress: req.ip,
-          userAgent: req.headers['user-agent']
-        });
-      } catch (error) {
-        console.log("Error writing GLOBAL_ROLE_CHANGED action to User Activity Log: ", error);
+        try {
+          await UserActivityLog.create({
+            userId: requestedById,
+            action: LogActions.GLOBAL_ROLE_CHANGED,
+            detail: ` changed ${firstName} ${lastName}'s global role to ${formattedGlobalRole}`,
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent']
+          });
+        } catch (error) {
+          console.log("Error writing GLOBAL_ROLE_CHANGED action to User Activity Log: ", error);
+        }
       }
 
       res.send({
