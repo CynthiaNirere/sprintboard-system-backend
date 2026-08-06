@@ -9,13 +9,17 @@ exports.create = async (req, res) => {
     return res.status(400).send({
       message: "Name cannot be empty for boardStatus!",
     });
-  }if (req.body.columnOrder === undefined) {
+  } if (req.body.columnOrder === undefined) {
     return res.status(400).send({
       message: "columnOrder cannot be empty for boardStatus!",
     });
-  }if (req.body.projectId === undefined) {
+  } if (req.body.projectId === undefined) {
     return res.status(400).send({
       message: "projectId cannot be empty for boardStatus!",
+    });
+  } if (req.body.githubEvent === undefined) {
+    return res.status(400).send({
+      message: "githubEvent cannot be empty for boardStatus!",
     });
   }
 
@@ -24,6 +28,7 @@ exports.create = async (req, res) => {
     name: req.body.name,
     columnOrder: req.body.columnOrder,
     projectId: req.body.projectId,
+    githubEvent: req.body.githubEvent
   };
 
   try {
@@ -36,7 +41,7 @@ exports.create = async (req, res) => {
   }
 };
 
-// Retrieve all boardStatuss
+// Retrieve all boardStatuses
 exports.findAll = async (req, res) => {
   try {
     const data = await BoardStatus.findAll();
