@@ -7,6 +7,11 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
     columnOrder: {
       type: DataTypes.INTEGER,
       allowNull: false,
+    },
+    githubEvent: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "none",
     }
   }, {
     tableName: "board_statuses",

@@ -2,6 +2,7 @@ module.exports = (app) => {
   const BoardStatus = require("../controllers/boardStatus.controller.js");
   const { authenticateRoute } = require("../authentication/authentication");
   const isAdmin = require("../middleware/isAdmin");
+  const isProjectAdmin = require("../middleware/isProjectAdmin.js");
 
   var router = require("express").Router();
 
@@ -40,7 +41,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin privileges required.
    */
-  router.post("/boardStatus/", [authenticateRoute, isAdmin], BoardStatus.create);
+  router.post("/project/:projectId/boardStatus/", [authenticateRoute, isProjectAdmin], BoardStatus.create);
 
   /**
    * @swagger
@@ -143,7 +144,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin privileges required.
    */
-  router.put("/boardStatus/:id", [authenticateRoute, isAdmin], BoardStatus.update);
+  router.put("/project/:projectId/boardStatus/:id", [authenticateRoute, isProjectAdmin], BoardStatus.update);
 
   /**
    * @swagger
@@ -167,7 +168,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin privileges required.
    */
-  router.delete("/boardStatus/:id", [authenticateRoute, isAdmin], BoardStatus.delete);
+  router.delete("/project/:projectId/boardStatus/:id", [authenticateRoute, isProjectAdmin], BoardStatus.delete);
 
   /**
    * @swagger
