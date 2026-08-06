@@ -145,10 +145,9 @@ exports.update = async (req, res) => {
     });
     if (num == 1) {
       const requestedById = req.userId;
-      const ticket = await Ticket.findByPk(id);
-
-      // Log the action to the user activity log
+      
       try {
+        const ticket = await Ticket.findByPk(id);
         await UserActivityLog.create({
           userId: requestedById,
           action: LogActions.TICKET_UPDATED,
