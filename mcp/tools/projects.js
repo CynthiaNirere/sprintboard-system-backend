@@ -1,25 +1,10 @@
 import { z } from "zod";
 const projectController = require("../../app/controllers/project.controller.js");
-const db = require("../../app/models");
 const { callController } = require("../lib/call-controller.js");
-
-async function isProjectAdminOrGlobalAdmin(userId, projectId) {
-  const user = await db.user.findByPk(userId);
-  if (user?.globalRole === "ADMIN") return true;
-
-  const membership = await db.projectMember.findOne({
-    where: { userId, projectId },
-  });
-  return membership?.projectRole === "PROJECT_ADMIN";
-}
-
-async function isGlobalAdmin(userId) {
-  const user = await db.user.findByPk(userId);
-  return user?.globalRole === "ADMIN";
-}
+const { isProjectAdminOrGlobalAdmin, isGlobalAdmin } = require("../lib/permissions.js");
 
 export function registerProjectTools(server) {
-  // --- AC1: Retrieve Project Data ---
+
 
   server.addTool({
     name: "get_my_projects",
@@ -55,7 +40,6 @@ export function registerProjectTools(server) {
       ),
   });
 
-  // --- AC2: Execute Supported Actions ---
 
   server.addTool({
     name: "create_project",
@@ -86,6 +70,7 @@ export function registerProjectTools(server) {
       projectRole: z.enum(["PROJECT_ADMIN", "DEVELOPER"]),
     }),
     execute: async (args, context) => {
+   
       const allowed = await isProjectAdminOrGlobalAdmin(context.session?.userId, args.projectId);
       if (!allowed) {
         throw new Response("Not authorized to add members to this project", { status: 403 });
@@ -115,7 +100,7 @@ export function registerProjectTools(server) {
         await callController(projectController.updateProjectMember, {
           params: { id: args.projectId },
           body: { userId: args.userId, projectRole: args.projectRole },
-          userId: context.session.userId, 
+          userId: context.session.userId, // controller reads req.userId as "requestedById"
         })
       );
     },
@@ -152,6 +137,7 @@ export function registerProjectTools(server) {
       }),
     }),
     execute: async (args, context) => {
+   
       if (!(await isGlobalAdmin(context.session?.userId))) {
         throw new Response("Admin privileges required", { status: 403 });
       }

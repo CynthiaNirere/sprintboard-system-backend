@@ -1,8 +1,14 @@
-// Wraps the Express-style (req, res) controllers so MCP tools can call
-// them without each one re-writing the same fake req/res plumbing.
+// Wraps the Express-style (req, res) controllers so MCP tooldirectly
 function callController(controllerFn, { params = {}, query = {}, body = {}, userId = null } = {}) {
   return new Promise((resolve, reject) => {
-    const fakeReq = { params, query, body, userId };
+    const fakeReq = {
+      params,
+      query,
+      body,
+      userId,
+      headers: { "user-agent": "SprintBoard AI Assistant" },
+      ip: "mcp-assistant",
+    };
     const fakeRes = {
       status: () => fakeRes,
       send: (data) => resolve(data),
@@ -10,5 +16,5 @@ function callController(controllerFn, { params = {}, query = {}, body = {}, user
     Promise.resolve(controllerFn(fakeReq, fakeRes)).catch(reject);
   });
 }
- 
+
 module.exports = { callController };
