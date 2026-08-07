@@ -1,5 +1,6 @@
 const db = require("../models");
 const Ticket = db.ticket;
+const BoardStatus = db.boardStatus;
 const Op = db.Sequelize.Op;
 const UserActivityLog = db.userActivityLog;
 const { LogActions } = require("../config/userActivityLogActions");
@@ -26,7 +27,7 @@ exports.create = async (req, res) => {
     assigneeId: req.body.assigneeId ?? null,
     projectId: req.body.projectId ?? null,
     sprintId: req.body.sprintId ?? null,
-    statusId: req.body.statusId ,
+    statusId: req.body.statusId ?? null,
   };
 
   try {
@@ -262,11 +263,33 @@ exports.findBacklog = async (req, res) => {
 exports.assignToSprint = async (req, res) => {
   const id = req.params.id;
   const sprintId = req.body.sprintId;
+
   if (sprintId === undefined) {
     return res.status(400).send({ message: "sprintId is required!" });
   }
   try {
-    const num = await Ticket.update({ sprintId: sprintId }, { where: { id: id } });
+    const ticket = await Ticket.findByPk(id);
+
+    if (!ticket) {
+      return res.status(404).send({ message: `Ticket with id=${id} not found.`});
+    }
+
+    let newBoardStatusId = ticket.statusId;
+
+    if (!newBoardStatusId) {
+      const firstBoardStatusColumn = await BoardStatus.findOne({
+        where: {
+          projectId: ticket.projectId
+        },
+        order: [["columnOrder", "ASC"]]
+      });
+
+      if (firstBoardStatusColumn) {
+        newBoardStatusId = firstBoardStatusColumn.id;
+      }
+    }
+
+    const num = await Ticket.update({ sprintId: sprintId, statusId: newBoardStatusId }, { where: { id: id } });
     if (num == 1) res.send({ message: "Ticket moved to sprint." });
     else res.send({ message: `Cannot move Ticket with id=${id}.` });
   } catch (err) {

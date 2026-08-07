@@ -1,5 +1,6 @@
 const db = require("../models");
 const BoardStatus = db.boardStatus;
+const Ticket = db.ticket;
 const Op = db.Sequelize.Op;
 
 // Create and Save a boardStatus
@@ -130,8 +131,63 @@ exports.update = async (req, res) => {
 // Delete a boardStatus with the specified id in the request
 exports.delete = async (req, res) => {
   const id = req.params.id;
+  const projectId = req.params.projectId;
 
   try {
+    const requestedStatusToDelete = await BoardStatus.findByPk(id);
+
+    if (!requestedStatusToDelete) {
+      return res.status(404).send({ message: `boardStatus with id=${id} not found` });
+    }
+
+    const fallbackBoardStatus = await BoardStatus.findOne({
+      where: {
+        projectId: projectId,
+        columnOrder: { [Op.lt]: requestedStatusToDelete.columnOrder }
+      },
+      order: [["columnOrder", "DESC"]]
+    });
+
+    await Ticket.update(
+      { 
+        statusId: null
+      },
+      {
+        where: {
+          statusId: id,
+          sprintId: null
+        }
+      }
+    );
+
+    if (fallbackBoardStatus) {
+      await Ticket.update(
+        {
+          statusId: fallbackBoardStatus.id 
+        },
+        {
+          where: {
+            statusId: id,
+            sprintId: { [Op.ne]: null }
+          }
+        }
+      );
+    }
+    else {
+      await Ticket.update(
+        {
+          sprintId: null,
+          statusId: null
+        },
+        {
+          where: { 
+            statusId: id,
+            sprintId: { [Op.ne]: null }
+          }
+        }
+      );
+    }
+
     const number = await BoardStatus.destroy({
       where: { id: id },
     });
@@ -151,7 +207,7 @@ exports.delete = async (req, res) => {
   }
 };
 
-// Delete all boardStatuss from the database.
+// Delete all boardStatuses from the database.
 exports.deleteAll = async (req, res) => {
   try {
     const number = await BoardStatus.destroy({
