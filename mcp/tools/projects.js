@@ -1,22 +1,7 @@
 import { z } from "zod";
 const projectController = require("../../app/controllers/project.controller.js");
-const db = require("../../app/models");
 const { callController } = require("../lib/call-controller.js");
-
-async function isProjectAdminOrGlobalAdmin(userId, projectId) {
-  const user = await db.user.findByPk(userId);
-  if (user?.globalRole === "ADMIN") return true;
-
-  const membership = await db.projectMember.findOne({
-    where: { userId, projectId },
-  });
-  return membership?.projectRole === "PROJECT_ADMIN";
-}
-
-async function isGlobalAdmin(userId) {
-  const user = await db.user.findByPk(userId);
-  return user?.globalRole === "ADMIN";
-}
+const { isProjectAdminOrGlobalAdmin, isGlobalAdmin } = require("../lib/permissions.js");
 
 export function registerProjectTools(server) {
   // --- AC1: Retrieve Project Data ---
