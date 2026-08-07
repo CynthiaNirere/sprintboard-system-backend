@@ -144,14 +144,14 @@ db.boardStatus.hasMany(db.ticket, {
   as: "boardStatusTickets",
   foreignKey: {
     name: "statusId",
-    allowNull: false,
+    allowNull: true,
   },
 });
 db.ticket.belongsTo(db.boardStatus, {
   as: "boardStatus",
   foreignKey: {
     name: "statusId",
-    allowNull: false,
+    allowNull: true,
   },
 });
 db.githubRepository.hasMany(db.ticket, {
