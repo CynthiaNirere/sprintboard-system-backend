@@ -7,6 +7,10 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
     name: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+    developmentBranch:{
+      type: DataTypes.STRING,
+      allowNull: false,
     }
   }, {
     tableName: "github_repositories",
