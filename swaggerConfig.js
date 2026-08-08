@@ -126,6 +126,83 @@ const options = {
           },
         },
 
+        Repo: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 3 },
+            projectId: { type: "integer" },
+            url: { type: "string", example: "https://github.com/acme/widgets" },
+            name: {
+              type: "string",
+              example: "widgets",
+              description: "The GitHub repository slug. Derived from url — anything sent by a client is overwritten.",
+            },
+            owner: {
+              type: "string",
+              nullable: true,
+              example: "acme",
+              description: "Derived from url. Null when the url cannot be parsed.",
+            },
+            developmentBranch: { type: "string", example: "dev" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        RepoInput: {
+          type: "object",
+          required: ["url", "name", "projectId", "developmentBranch"],
+          properties: {
+            url: { type: "string", example: "https://github.com/acme/widgets" },
+            name: {
+              type: "string",
+              description: "Required, but overwritten with the slug parsed from url.",
+            },
+            projectId: { type: "integer" },
+            developmentBranch: {
+              type: "string",
+              description: "The branch new ticket branches are cut from. Must exist on GitHub.",
+            },
+            webhookSecret: {
+              type: "string",
+              format: "password",
+              nullable: true,
+              writeOnly: true,
+              description:
+                "Optional. The secret configured on this repository's GitHub webhook, used to verify delivery signatures. Stored encrypted and never returned by any endpoint — if it is lost, send a new one and update GitHub to match. Send null to clear it, which disables the webhook for this repository.",
+            },
+          },
+        },
+        GithubWebhookPayload: {
+          type: "object",
+          description: "The subset of GitHub's pull_request payload this endpoint reads.",
+          properties: {
+            action: {
+              type: "string",
+              example: "opened",
+              description: "opened and reopened map to pr_opened; closed with merged=true maps to pr_merged. Everything else is ignored.",
+            },
+            repository: {
+              type: "object",
+              properties: {
+                full_name: { type: "string", example: "acme/widgets" },
+              },
+            },
+            pull_request: {
+              type: "object",
+              properties: {
+                number: { type: "integer", example: 42 },
+                merged: { type: "boolean" },
+                html_url: { type: "string", example: "https://github.com/acme/widgets/pull/42" },
+                head: {
+                  type: "object",
+                  properties: {
+                    ref: { type: "string", example: "bugfix/users-cannot-login" },
+                  },
+                },
+              },
+            },
+          },
+        },
         GithubTokenStatus: {
           type: "object",
           description: "Whether a user has a GitHub token on file. The token itself is never returned.",
@@ -171,6 +248,7 @@ const options = {
                 "RATE_LIMITED",
                 "NOT_FOUND",
                 "BASE_BRANCH_NOT_FOUND",
+                "INVALID_BRANCH_NAME",
                 "INVALID",
                 "TIMEOUT",
                 "NETWORK",
@@ -349,8 +427,24 @@ const options = {
             type: { type: "string", enum: ["FEATURE", "ENHANCEMENT", "BUG"] },
             priority: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"], nullable: true },
             storyPoints: { type: "integer", nullable: true, enum: [0, 1, 2, 3, 5, 8, 13, 21, 34, 55] },
-            githubBranchName: { type: "string", nullable: true },
-            githubPrURL: { type: "string", nullable: true },
+            githubBranchName: {
+              type: "string",
+              nullable: true,
+              description:
+                "The branch name to use. Set it to choose your own; leave it empty and the automation generates one from the ticket type and title. Once githubBranchCreatedAt is set the branch exists and changing this field no longer creates anything.",
+            },
+            githubBranchCreatedAt: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+              readOnly: true,
+              description: "Set by the automation when the branch is actually created on GitHub.",
+            },
+            githubPrURL: {
+              type: "string",
+              nullable: true,
+              description: "Set by the GitHub webhook when a pull request for this ticket's branch opens.",
+            },
             githubIssueNumber: { type: "integer", nullable: true },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
@@ -376,7 +470,12 @@ const options = {
             sprintId: { type: "integer", nullable: true },
             assigneeId: { type: "integer", nullable: true },
             storyPoints: { type: "integer", nullable: true, enum: [0, 1, 2, 3, 5, 8, 13, 21, 34, 55] },
-            githubBranchName: { type: "string", nullable: true },
+            githubBranchName: {
+              type: "string",
+              nullable: true,
+              description:
+                "Optional. The exact branch name to create when this ticket reaches a CREATE_BRANCH board status. Leave it empty to get the generated convention. An illegal git ref name is reported back as INVALID_BRANCH_NAME when the automation runs.",
+            },
             githubPrURL: { type: "string", nullable: true },
             githubIssueNumber: { type: "integer", nullable: true },
           },
@@ -394,7 +493,12 @@ const options = {
             sprintId: { type: "integer", nullable: true },
             assigneeId: { type: "integer", nullable: true },
             storyPoints: { type: "integer", nullable: true, enum: [0, 1, 2, 3, 5, 8, 13, 21, 34, 55] },
-            githubBranchName: { type: "string", nullable: true },
+            githubBranchName: {
+              type: "string",
+              nullable: true,
+              description:
+                "Optional. The exact branch name to create when this ticket reaches a CREATE_BRANCH board status. Leave it empty to get the generated convention. An illegal git ref name is reported back as INVALID_BRANCH_NAME when the automation runs.",
+            },
             githubPrURL: { type: "string", nullable: true },
             githubIssueNumber: { type: "integer", nullable: true },
           },

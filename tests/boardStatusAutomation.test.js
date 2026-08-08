@@ -27,6 +27,27 @@ describe("boardStatusAutomation", () => {
   it("uses the agreed column name", () => {
     expect(AUTOMATION_FIELD).toBe("githubEvent");
     expect(AutomationEvents.CREATE_BRANCH).toBe("CREATE_BRANCH");
+    expect(AutomationEvents.PR_OPENED).toBe("PR_OPENED");
+    expect(AutomationEvents.PR_MERGED).toBe("PR_MERGED");
+  });
+
+
+  it("resolves the lowercase values actually stored in the database", () => {
+    // The board-status work writes lowercase snake_case.
+    expect(getStatusEvent({ githubEvent: "create_branch" })).toBe("CREATE_BRANCH");
+    expect(getStatusEvent({ githubEvent: "pr_opened" })).toBe("PR_OPENED");
+    expect(getStatusEvent({ githubEvent: "pr_merged" })).toBe("PR_MERGED");
+  });
+
+
+  it("keeps the three events distinct", () => {
+    expect(getStatusEvent({ githubEvent: "create_branch" })).not.toBe("PR_OPENED");
+    expect(getStatusEvent({ githubEvent: "pr_opened" })).not.toBe("PR_MERGED");
+  });
+
+
+  it("ignores the leftover branch_created value", () => {
+    expect(getStatusEvent({ githubEvent: "branch_created" })).toBeNull();
   });
 
 
@@ -79,6 +100,22 @@ describe("boardStatusAutomation", () => {
 
       expect(result).toBeNull();
       expect(db.boardStatus.findOne).not.toHaveBeenCalled();
+    });
+
+
+    it.each([
+      ["PR_OPENED"],
+      ["PR_MERGED"],
+    ])("looks up the status carrying %s", async (event) => {
+      db.boardStatus.findOne.mockResolvedValue({ id: 4, name: "Done" });
+
+      const result = await findStatusWithEvent(7, event);
+
+      expect(db.boardStatus.findOne).toHaveBeenCalledWith({
+        where: { projectId: 7, githubEvent: event },
+        order: [["columnOrder", "ASC"]],
+      });
+      expect(result).toEqual({ id: 4, name: "Done" });
     });
 
   });

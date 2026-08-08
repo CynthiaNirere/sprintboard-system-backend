@@ -13,7 +13,11 @@ const db = require("../models");
 const AUTOMATION_FIELD = "githubEvent";
 
 const AutomationEvents = {
+  // Outbound: cut a branch when a ticket lands in this column.
   CREATE_BRANCH: "CREATE_BRANCH",
+  // Inbound: move a ticket into this column when its PR opens / merges.
+  PR_OPENED: "PR_OPENED",
+  PR_MERGED: "PR_MERGED",
 };
 
 const VALID_EVENTS = new Set(Object.values(AutomationEvents));

@@ -8,7 +8,11 @@ const db = require("../models");
 const { decrypt } = require("../authentication/crypto");
 const github = require("./github.service");
 const { parseRepoUrl } = require("./githubUrl");
-const { buildBranchName } = require("./githubBranchName");
+const {
+  buildBranchName,
+  normaliseBranchName,
+  isValidBranchName,
+} = require("./githubBranchName");
 const { AutomationEvents, getStatusEvent } = require("./boardStatusAutomation");
 const { LogActions } = require("../config/userActivityLogActions");
 
@@ -88,14 +92,29 @@ const runStatusChangeAutomation = async ({ ticketId, newStatusId, actingUserId, 
     if (!ticket) return skip("TICKET_NOT_FOUND");
 
     // Already branched. Moving a ticket out of the column and back in must not
-    // hit GitHub again.
-    if (ticket.githubBranchName) {
+    // hit GitHub again. Keyed off the stamp rather than the name, because a
+    // name on its own may be one somebody typed for a branch that does not
+    // exist yet.
+    if (ticket.githubBranchCreatedAt) {
       return {
         ran: true,
         ok: true,
         branch: ticket.githubBranchName,
         alreadyExisted: true,
         repoId: ticket.repoId ?? null,
+      };
+    }
+
+    // A name on the ticket is a request for that exact branch; an empty field
+    // means "use the convention". Validate before touching the repo, the token
+    // or the network, so a typo costs nothing.
+    const requested = normaliseBranchName(ticket.githubBranchName);
+    if (requested && !isValidBranchName(requested)) {
+      return {
+        ran: true,
+        ok: false,
+        code: "INVALID_BRANCH_NAME",
+        message: `"${requested}" is not a valid git branch name.`,
       };
     }
 
@@ -110,7 +129,7 @@ const runStatusChangeAutomation = async ({ ticketId, newStatusId, actingUserId, 
     if (resolvedToken.reason) return skip(resolvedToken.reason);
     const token = resolvedToken.token;
 
-    const branch = buildBranchName(ticket);
+    const branch = requested || buildBranchName(ticket);
 
     let sha;
     try {
@@ -141,9 +160,8 @@ const runStatusChangeAutomation = async ({ ticketId, newStatusId, actingUserId, 
       branch: branch,
       sha: sha,
     });
-
     await Ticket.update(
-      { githubBranchName: branch, repoId: repo.id },
+      { githubBranchName: branch, repoId: repo.id, githubBranchCreatedAt: new Date() },
       { where: { id: ticketId } }
     );
 

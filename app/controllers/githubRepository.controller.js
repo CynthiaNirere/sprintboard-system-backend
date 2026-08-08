@@ -1,6 +1,27 @@
 const db = require("../models");
+const { encrypt } = require("../authentication/crypto");
+const { parseRepoUrl } = require("../services/githubUrl");
 const Repo = db.githubRepository;
 const Op = db.Sequelize.Op;
+
+/**
+ * Turns a client-supplied webhookSecret into the column to persist.
+ *
+ * Returns { fields } on success, or { error: { status, message } } for the
+ * caller to send straight back. null clears the stored secret, which disables
+ * that repository's webhook.
+ */
+const resolveWebhookSecret = async (rawSecret) => {
+  if (rawSecret === null) {
+    return { fields: { webhookSecret: null } };
+  }
+
+  if (typeof rawSecret !== "string" || rawSecret.trim() === "") {
+    return { error: { status: 400, message: "webhookSecret cannot be empty!" } };
+  }
+
+  return { fields: { webhookSecret: await encrypt(rawSecret.trim()) } };
+};
 
 // Create and Save a Repo
 exports.create = async (req, res) => {
@@ -23,7 +44,9 @@ exports.create = async (req, res) => {
     });
   }
 
-  // Create a Repo
+  // Create a Repo. name and owner are overwritten from url by the model's
+  // beforeValidate hook, so the value here is only a fallback for a url the
+  // parser cannot read.
   const repo = {
     url: req.body.url,
     name: req.body.name,
@@ -31,9 +54,21 @@ exports.create = async (req, res) => {
     developmentBranch: req.body.developmentBranch,
   };
 
+  // A webhook secret is optional at link time — the repo just cannot receive
+  // deliveries until one is set.
+  if (req.body.webhookSecret !== undefined && req.body.webhookSecret !== null) {
+    const resolved = await resolveWebhookSecret(req.body.webhookSecret);
+    if (resolved.error) {
+      return res.status(resolved.error.status).send({ message: resolved.error.message });
+    }
+    repo.webhookSecret = resolved.fields.webhookSecret;
+  }
+
   try {
     const data = await Repo.create(repo);
-    res.send(data);
+    // The secret is never echoed back, not even on the request that set it.
+    const { webhookSecret, ...safe } = data.toJSON();
+    res.send(safe);
   } catch (err) {
     res.status(500).send({
       message: err.message || "Some error occurred while creating the Repo.",
@@ -86,8 +121,29 @@ exports.findOne = async (req, res) => {
 exports.update = async (req, res) => {
   const id = req.params.id;
 
+  const updateData = { ...req.body };
+
+  // Never let a raw secret reach the database.
+  if (updateData.webhookSecret !== undefined) {
+    const resolved = await resolveWebhookSecret(updateData.webhookSecret);
+    if (resolved.error) {
+      return res.status(resolved.error.status).send({ message: resolved.error.message });
+    }
+    updateData.webhookSecret = resolved.fields.webhookSecret;
+  }
+
+  // Model.update runs as a bulk update, which does not fire the per-instance
+  // beforeValidate hook, so keep owner/name in step with a changed url here.
+  if (updateData.url !== undefined) {
+    const parsed = parseRepoUrl(updateData.url);
+    if (parsed) {
+      updateData.owner = parsed.owner;
+      updateData.name = parsed.repoName;
+    }
+  }
+
   try {
-    const num = await Repo.update(req.body, {
+    const num = await Repo.update(updateData, {
       where: { id: id },
     });
     if (num == 1) {
