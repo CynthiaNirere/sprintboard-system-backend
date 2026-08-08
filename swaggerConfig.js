@@ -84,7 +84,20 @@ const options = {
             username: { type: "string" },
             email: { type: "string", format: "email" },
             password: { type: "string", format: "password" },
-            githubAccount: { type: "string", nullable: true },
+            githubAccount: {
+              type: "string",
+              nullable: true,
+              description: "Overwritten by the verified login when a githubToken is supplied.",
+            },
+            githubToken: {
+              type: "string",
+              format: "password",
+              nullable: true,
+              writeOnly: true,
+              description:
+                "Optional. A GitHub personal access token — prefer a fine-grained token scoped to the single repository with 'Contents: Read and write', since a classic 'repo' token grants access to every repository the user can see. When supplied it is verified against GitHub, stored AES-256-GCM encrypted, and never returned by any endpoint.",
+              example: "github_pat_11ABCDEFG0abcdefghijkl_...",
+            },
           },
         },
         UserUpdateInput: {
@@ -95,8 +108,76 @@ const options = {
             firstName: { type: "string" },
             lastName: { type: "string" },
             email: { type: "string", format: "email" },
-            githubAccount: { type: "string", nullable: true },
+            githubAccount: {
+              type: "string",
+              nullable: true,
+              description: "Overwritten by the verified login when a githubToken is supplied.",
+            },
             globalRole: { type: "string", enum: ["ADMIN", "USER"] },
+            githubToken: {
+              type: "string",
+              format: "password",
+              nullable: true,
+              writeOnly: true,
+              description:
+                "Send a token to connect or replace the GitHub account — it is verified against GitHub before being stored encrypted. Send null to clear the stored token. Omit the field to leave it untouched.",
+              example: "github_pat_11ABCDEFG0abcdefghijkl_...",
+            },
+          },
+        },
+
+        GithubTokenStatus: {
+          type: "object",
+          description: "Whether a user has a GitHub token on file. The token itself is never returned.",
+          properties: {
+            connected: { type: "boolean", example: true },
+            updatedAt: { type: "string", format: "date-time", nullable: true },
+            githubAccount: { type: "string", nullable: true, example: "justin-walraven" },
+          },
+        },
+        GithubAutomationResult: {
+          type: "object",
+          description:
+            "Present on PUT /ticket/{id} only when the update moved the ticket into a board status carrying a GitHub event. The ticket move itself always succeeds — check `ok` to see whether the GitHub side worked.",
+          properties: {
+            ran: { type: "boolean", example: true },
+            ok: { type: "boolean", example: true },
+            branch: { type: "string", example: "feature/ticket-42-fix-the-login-redirect" },
+            alreadyExisted: {
+              type: "boolean",
+              description: "True when the branch was already present on GitHub or already recorded on the ticket.",
+            },
+            repoId: { type: "integer", nullable: true },
+            reason: {
+              type: "string",
+              description: "Why no branch was attempted.",
+              enum: [
+                "NO_EVENT",
+                "TICKET_NOT_FOUND",
+                "NO_REPO_LINKED",
+                "AMBIGUOUS_REPO",
+                "REPO_PROJECT_MISMATCH",
+                "REPO_URL_UNPARSEABLE",
+                "NO_TOKEN",
+                "TOKEN_UNREADABLE",
+              ],
+            },
+            code: {
+              type: "string",
+              description: "Why the GitHub call failed.",
+              enum: [
+                "BAD_TOKEN",
+                "FORBIDDEN",
+                "RATE_LIMITED",
+                "NOT_FOUND",
+                "BASE_BRANCH_NOT_FOUND",
+                "INVALID",
+                "TIMEOUT",
+                "NETWORK",
+                "UNKNOWN",
+              ],
+            },
+            message: { type: "string" },
           },
         },
 

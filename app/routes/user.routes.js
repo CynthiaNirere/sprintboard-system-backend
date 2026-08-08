@@ -34,11 +34,18 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/LoginResponse'
    *       400:
-   *         description: Missing required field, or email already in use.
+   *         description: >
+   *           Missing required field, email already in use, or the supplied
+   *           githubToken was malformed or rejected by GitHub. No user is
+   *           created when the token is bad.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
+   *       502:
+   *         description: A githubToken was supplied but GitHub could not be reached to verify it.
+   *       503:
+   *         description: A githubToken was supplied but GitHub is rate limiting requests.
    */
   router.post("/users/", User.create);
 
@@ -111,7 +118,8 @@ module.exports = (app) => {
    *     summary: Update a user by id
    *     description: >
    *       Callable by the user themselves or an Admin. Password cannot be
-   *       changed via this route.
+   *       changed via this route. Send githubToken to connect or replace the
+   *       GitHub account, or null to clear it.
    *     tags: [Users]
    *     parameters:
    *       - in: path
@@ -132,8 +140,18 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       400:
+   *         description: The supplied githubToken was malformed or rejected by GitHub.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Access denied. Admins or account owners only.
+   *       502:
+   *         description: A githubToken was supplied but GitHub could not be reached to verify it.
+   *       503:
+   *         description: A githubToken was supplied but GitHub is rate limiting requests.
    */
   router.put("/users/:id", [authenticateRoute, selfOrAdmin], User.update);
 
@@ -178,6 +196,37 @@ module.exports = (app) => {
    *         description: Admin privileges required.
    */
   router.delete("/users/", [authenticateRoute, isAdmin], User.deleteAll);
+
+  /**
+   * @swagger
+   * /users/{id}/github-token:
+   *   get:
+   *     summary: Check whether a user has a GitHub token on file
+   *     description: >
+   *       Returns only whether a token exists and when it was last set. The
+   *       token is never decrypted or returned. Set it via POST /users or
+   *       PUT /users/{id}; clear it by sending githubToken: null to
+   *       PUT /users/{id}.
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: The user's GitHub connection status.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/GithubTokenStatus'
+   *       403:
+   *         description: Access denied. Admins or account owners only.
+   *       404:
+   *         description: User not found.
+   */
+  router.get("/users/:id/github-token", [authenticateRoute, selfOrAdmin], User.getGithubTokenStatus);
 
   app.use("/sprintboardapi", router);
 };

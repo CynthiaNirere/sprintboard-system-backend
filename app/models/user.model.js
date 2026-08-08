@@ -35,10 +35,32 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
     githubAccount: {
       type: DataTypes.STRING,
       allowNull: true,
+    },
+    // AES-256-GCM base64 blob produced by crypto.encrypt. Never returned by any
+    // endpoint — see the defaultScope below and the exclude lists in
+    // user.controller.js.
+    githubToken: {
+      type: DataTypes.STRING(512),
+      allowNull: true,
+    },
+    githubTokenUpdatedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
     }
   }, {
     tableName: "users",
-    timestamps: true
+    timestamps: true,
+
+    // Guards implicit reads only. A query that passes its own `attributes`
+    // overrides this entirely, so the explicit exclude lists still matter.
+    defaultScope: {
+      attributes: { exclude: ["githubToken"] },
+    },
+    scopes: {
+      withGithubToken: {
+        attributes: { include: ["githubToken"] },
+      },
+    }
   });
 
   return User;
