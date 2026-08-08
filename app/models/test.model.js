@@ -12,7 +12,11 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
       type: DataTypes.ENUM('PENDING', 'FAILED', 'PASSED'),
       allowNull: false,
       defaultValue: 'PENDING',
-    }
+    },
+    findings: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
   }, {
     tableName: "tests",
     timestamps: true
