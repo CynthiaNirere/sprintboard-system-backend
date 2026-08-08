@@ -3,6 +3,11 @@ const { Sequelize, DataTypes, Model } = require("sequelize");
 const sequelize = new Sequelize(dbConfig.DB, dbConfig.USER, dbConfig.PASSWORD, {
   host: dbConfig.HOST,
   dialect: dbConfig.dialect,
+  // Sequelize logs every statement by default. In production that is the
+  // dominant source of container log volume, which is capped but still
+  // rotates real disk on a small root volume. App-level logs and errors
+  // are unaffected.
+  logging: process.env.NODE_ENV === "production" ? false : console.log,
   pool: {
     max: dbConfig.pool.max,
     min: dbConfig.pool.min,
