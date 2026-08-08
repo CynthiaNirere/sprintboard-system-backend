@@ -181,15 +181,17 @@ exports.update = async (req, res) => {
         req.body.statusId !== undefined &&
         previousStatusId !== null &&
         String(req.body.statusId) !== String(previousStatusId);
-
+      console.log(statusChanged, "\n");
       if (statusChanged) {
         try {
+
           const result = await githubAutomation.runStatusChangeAutomation({
             ticketId: id,
             newStatusId: req.body.statusId,
             actingUserId: requestedById,
             req: req,
           });
+          console.log(result, "\n");
           if (result && result.ran) github = result;
         } catch (error) {
           console.log("Error running GitHub status automation: ", error);

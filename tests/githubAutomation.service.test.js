@@ -101,10 +101,11 @@ describe("runStatusChangeAutomation", () => {
     });
 
 
-    it("does not call GitHub again when the ticket already has a branch", async () => {
+    it("does not call GitHub again once the branch has been created", async () => {
       Ticket.findByPk.mockResolvedValue({
         ...TICKET,
-        githubBranchName: "bugfix/ticket-42-fix-the-login-redirect",
+        githubBranchName: "bugfix/fix-the-login-redirect",
+        githubBranchCreatedAt: new Date("2026-08-01T10:00:00Z"),
         repoId: 3,
       });
 
@@ -113,12 +114,93 @@ describe("runStatusChangeAutomation", () => {
       expect(result).toEqual({
         ran: true,
         ok: true,
-        branch: "bugfix/ticket-42-fix-the-login-redirect",
+        branch: "bugfix/fix-the-login-redirect",
         alreadyExisted: true,
         repoId: 3,
       });
       expect(github.getRefSha).not.toHaveBeenCalled();
       expect(github.createBranch).not.toHaveBeenCalled();
+    });
+
+
+    it("still creates the branch when a name is set but nothing was created yet", async () => {
+      // A name on its own is a request, not a record — this is the case that
+      // used to silently do nothing and report success.
+      Ticket.findByPk.mockResolvedValue({
+        ...TICKET,
+        githubBranchName: "spike/try-redis",
+        githubBranchCreatedAt: null,
+      });
+
+      const result = await run();
+
+      expect(github.createBranch).toHaveBeenCalledWith(
+        expect.objectContaining({ branch: "spike/try-redis" })
+      );
+      expect(result.ok).toBe(true);
+      expect(result.branch).toBe("spike/try-redis");
+    });
+
+  });
+
+
+  describe("requested branch names", () => {
+
+    it("uses the name on the ticket verbatim", async () => {
+      Ticket.findByPk.mockResolvedValue({ ...TICKET, githubBranchName: "fix/login-redirect" });
+
+      await run();
+
+      expect(github.createBranch).toHaveBeenCalledWith(
+        expect.objectContaining({ branch: "fix/login-redirect" })
+      );
+    });
+
+
+    it("strips a refs/heads/ prefix", async () => {
+      Ticket.findByPk.mockResolvedValue({ ...TICKET, githubBranchName: "refs/heads/foo" });
+
+      const result = await run();
+
+      expect(github.createBranch).toHaveBeenCalledWith(
+        expect.objectContaining({ branch: "foo" })
+      );
+      expect(result.branch).toBe("foo");
+    });
+
+
+    it("falls back to the convention for a whitespace-only name", async () => {
+      Ticket.findByPk.mockResolvedValue({ ...TICKET, githubBranchName: "   " });
+
+      const result = await run();
+
+      expect(result.branch).toBe("bugfix/fix-the-login-redirect");
+    });
+
+
+    it.each([
+      ["a space", "my branch"],
+      ["a double dot", "feature/a..b"],
+      ["a trailing slash", "bad/"],
+      ["a .lock suffix", "feature/x.lock"],
+      ["a tilde", "feature/~x"],
+      ["a leading dot in a component", "feature/.hidden"],
+    ])("rejects %s before doing any work", async (_label, name) => {
+      Ticket.findByPk.mockResolvedValue({ ...TICKET, githubBranchName: name });
+
+      const result = await run();
+
+      expect(result).toEqual({
+        ran: true,
+        ok: false,
+        code: "INVALID_BRANCH_NAME",
+        message: `"${name}" is not a valid git branch name.`,
+      });
+      // Cheap failure: no repo lookup, no token decrypt, no network.
+      expect(Repo.findAll).not.toHaveBeenCalled();
+      expect(User.findByPk).not.toHaveBeenCalled();
+      expect(github.getRefSha).not.toHaveBeenCalled();
+      expect(Ticket.update).not.toHaveBeenCalled();
     });
 
   });
@@ -222,29 +304,32 @@ describe("runStatusChangeAutomation", () => {
         token: "ghp_realtoken",
         owner: "acme",
         repo: "widgets",
-        branch: "bugfix/ticket-42-fix-the-login-redirect",
+        branch: "bugfix/fix-the-login-redirect",
         sha: "basesha",
       });
-      expect(Ticket.update).toHaveBeenCalledWith(
-        { githubBranchName: "bugfix/ticket-42-fix-the-login-redirect", repoId: 3 },
-        { where: { id: 42 } }
-      );
+
+      const [updateData, where] = Ticket.update.mock.calls[0];
+      expect(updateData.githubBranchName).toBe("bugfix/fix-the-login-redirect");
+      expect(updateData.repoId).toBe(3);
+      expect(updateData.githubBranchCreatedAt).toBeInstanceOf(Date);
+      expect(where).toEqual({ where: { id: 42 } });
+
       expect(result).toEqual({
         ran: true,
         ok: true,
-        branch: "bugfix/ticket-42-fix-the-login-redirect",
+        branch: "bugfix/fix-the-login-redirect",
         alreadyExisted: false,
         repoId: 3,
       });
     });
 
 
-    it("still records the branch when it already existed on GitHub", async () => {
+    it("still records and stamps the branch when it already existed on GitHub", async () => {
       github.createBranch.mockResolvedValue({ created: false, ref: "refs/heads/x" });
 
       const result = await run();
 
-      expect(Ticket.update).toHaveBeenCalled();
+      expect(Ticket.update.mock.calls[0][0].githubBranchCreatedAt).toBeInstanceOf(Date);
       expect(result.ok).toBe(true);
       expect(result.alreadyExisted).toBe(true);
     });

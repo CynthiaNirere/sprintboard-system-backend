@@ -33,7 +33,18 @@ app.use(cors(corsOptions));
 app.options("*", cors());
 
 // parse requests of content-type - application/json
-app.use(express.json());
+app.use(express.json({
+  // GitHub pull_request payloads routinely exceed the 100kb default.
+  limit: "1mb",
+  // The GitHub webhook signature is an HMAC over the exact bytes sent, which
+  // parsing throws away — keep them for that one route. This callback must
+  // never throw: an exception here would 400 every request on the server.
+  verify: (req, res, buf) => {
+    if (req.originalUrl && req.originalUrl.startsWith("/sprintboardapi/github/webhook")) {
+      req.rawBody = buf;
+    }
+  },
+}));
 
 // parse requests of content-type - application/x-www-form-urlencoded
 app.use(express.urlencoded({ extended: true }));
@@ -62,6 +73,7 @@ require("./app/routes/retrospective.routes.js")(app);
 require("./app/routes/retrospectiveItems.routes.js")(app);
 require("./app/routes/userActivityLog.routes.js")(app);
 require("./app/routes/githubRepositories.routes.js")(app);
+require("./app/routes/githubWebhook.routes.js")(app);
 
 
 // set port, listen for requests

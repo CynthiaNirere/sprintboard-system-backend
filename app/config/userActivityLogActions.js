@@ -16,6 +16,8 @@ const LogActions = {
   SPRINT_DELETED: "Sprint deleted",
   GITHUB_REPO_LINKED: "GitHub repo linked",
   GITHUB_BRANCH_CREATED: "GitHub branch created",
+  GITHUB_PR_OPENED: "GitHub PR opened",
+  GITHUB_PR_MERGED: "GitHub PR merged",
   GITHUB_TOKEN_UPDATED: "GitHub token updated",
   GITHUB_TOKEN_CLEARED: "GitHub token cleared",
   BOARD_STATUS_UPDATED: "Board status updated",
