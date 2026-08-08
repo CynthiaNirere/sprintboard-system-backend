@@ -3,10 +3,14 @@ name: AWS DEPLOY TO STAGING
 on:
   workflow_dispatch:
     inputs:
-      seed_database:
-        description: "Run init-db:keep after deploy (first deploy only — not idempotent)"
-        type: boolean
-        default: false
+      seed_mode:
+        description: "Seeding: none | keep (add seed data, fails if it already exists) | wipe (DESTRUCTIVE: drop all tables, then seed)"
+        type: choice
+        options:
+          - none
+          - keep
+          - wipe
+        default: none
       purge_host_mysql:
         description: "DESTRUCTIVE: uninstall host MySQL/MariaDB and delete /var/lib/mysql to reclaim disk"
         type: boolean
@@ -214,19 +218,38 @@ jobs:
             sudo systemctl disable --now mariadb || true
 
             COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
+
+            # Prune BEFORE building too. Otherwise the previous run's dangling
+            # layers and build cache are still on disk during the new build,
+            # inflating the peak on an already-tight volume. Images in use by
+            # running containers are protected, so this cannot pull the stack
+            # out from under itself.
+            echo "----- docker usage before -----"
+            sudo docker system df
+            sudo docker builder prune -af || true
+            sudo docker image prune -af || true
+            sudo docker container prune -f || true
+            sudo docker network prune -f || true
+            df -h /
+
             sudo $COMPOSE up -d --build
 
             # Repeated --build deploys accumulate layers fast on a 6.6GB disk.
-            # Never use --volumes here: that would destroy the database.
-            sudo docker image prune -af
+            # NEVER add --volumes to any of these: that would destroy the database.
             sudo docker builder prune -af
+            sudo docker image prune -af
+            sudo docker container prune -f
+            echo "----- docker usage after -----"
+            sudo docker system df
             df -h /
 
       # init-db is NOT idempotent: user.email is unique and scripts/init-db.js
-      # exits 1 on any error, so a second run collides on the seeded admin.
-      # Run it once via dispatch, then leave this input off.
-      - name: Seed database (one-shot, opt-in)
-        if: ${{ inputs.seed_database }}
+      # exits 1 on any error, so `keep` collides with any pre-existing row
+      # holding a seed email — whether from an earlier seed or a hand-created
+      # user. `wipe` drops every table first, which is the way out of that.
+      # Leave this at none on ordinary deploys.
+      - name: Seed database (opt-in)
+        if: ${{ inputs.seed_mode == 'keep' || inputs.seed_mode == 'wipe' }}
         uses: JimCronqvist/action-ssh@master
         with:
           hosts: "ubuntu@${{ secrets.REMOTE_HOST }}"
@@ -236,7 +259,8 @@ jobs:
             set -e
             cd nodeapps/sprintboard-system-backend
             COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
-            sudo $COMPOSE run --rm backend npm run init-db:wipe
+            echo "Seeding mode: ${{ inputs.seed_mode }}"
+            sudo $COMPOSE run --rm backend npm run init-db:${{ inputs.seed_mode }}
 
       # With no SSH access, the Actions log is the only console onto the box.
       - name: Diagnostics
