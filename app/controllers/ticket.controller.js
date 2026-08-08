@@ -3,6 +3,7 @@ const Ticket = db.ticket;
 const Op = db.Sequelize.Op;
 const UserActivityLog = db.userActivityLog;
 const { LogActions } = require("../config/userActivityLogActions");
+const githubAutomation = require("../services/githubAutomation.service");
 
 // Create and Save a Ticket
 exports.create = async (req, res) => {
@@ -27,6 +28,7 @@ exports.create = async (req, res) => {
     projectId: req.body.projectId ?? null,
     sprintId: req.body.sprintId ?? null,
     statusId: req.body.statusId ,
+    repoId: req.body.repoId ?? null,
   };
 
   try {
@@ -140,6 +142,16 @@ exports.update = async (req, res) => {
   const id = req.params.id;
 
   try {
+    // Capture the status before the write — afterwards there is no way to tell
+    // whether this update actually moved the ticket to a different column.
+    let previousStatusId = null;
+    try {
+      const before = await Ticket.findByPk(id);
+      previousStatusId = before ? before.statusId : null;
+    } catch (error) {
+      console.log("Could not read ticket before update: ", error);
+    }
+
     const num = await Ticket.update(req.body, {
       where: { id: id },
     });
@@ -160,8 +172,33 @@ exports.update = async (req, res) => {
         console.log("Error writing TICKET_UPDATED action to User Activity Log: ", error);
       }
 
+      // If this update moved the ticket into a different board status, run any
+      // GitHub automation attached to that status. The move is already
+      // committed and is what the user actually asked for, so a GitHub failure
+      // is reported alongside the success, never raised as an error.
+      let github;
+      const statusChanged =
+        req.body.statusId !== undefined &&
+        previousStatusId !== null &&
+        String(req.body.statusId) !== String(previousStatusId);
+
+      if (statusChanged) {
+        try {
+          const result = await githubAutomation.runStatusChangeAutomation({
+            ticketId: id,
+            newStatusId: req.body.statusId,
+            actingUserId: requestedById,
+            req: req,
+          });
+          if (result && result.ran) github = result;
+        } catch (error) {
+          console.log("Error running GitHub status automation: ", error);
+        }
+      }
+
       res.send({
         message: "Ticket was updated successfully.",
+        ...(github ? { github: github } : {}),
       });
     } else {
       res.send({
