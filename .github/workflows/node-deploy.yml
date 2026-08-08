@@ -236,7 +236,7 @@ jobs:
             set -e
             cd nodeapps/sprintboard-system-backend
             COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
-            sudo $COMPOSE run --rm backend npm run init-db:keep
+            sudo $COMPOSE run --rm backend npm run init-db:wipe
 
       # With no SSH access, the Actions log is the only console onto the box.
       - name: Diagnostics
