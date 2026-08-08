@@ -7,6 +7,10 @@ on:
         description: "Run init-db:keep after deploy (first deploy only — not idempotent)"
         type: boolean
         default: false
+      purge_host_mysql:
+        description: "DESTRUCTIVE: uninstall host MySQL/MariaDB and delete /var/lib/mysql to reclaim disk"
+        type: boolean
+        default: false
   pull_request:
     types: [closed]
     branches:
@@ -68,6 +72,83 @@ jobs:
           REMOTE_USER: ubuntu
           TARGET: "nodeapps/sprintboard-system-backend"
 
+      # The 6.6GB root volume ran to 95% full, which broke apt and blocked the
+      # Docker install. Reclaim space and repair dpkg before anything else.
+      - name: Preflight — disk space and apt health
+        uses: JimCronqvist/action-ssh@master
+        with:
+          hosts: "ubuntu@${{ secrets.REMOTE_HOST }}"
+          privateKey: ${{ secrets.SERVER_SSH_KEY }}
+          debug: false
+          command: |
+            echo "===== disk before ====="
+            df -h /
+            echo "===== biggest consumers ====="
+            sudo du -xh --max-depth=2 /var /home /usr 2>/dev/null | sort -rh | head -25
+
+            echo "===== repairing apt ====="
+            sudo dpkg --configure -a || true
+            sudo apt-get --fix-broken install -y || true
+
+            echo "===== reclaiming space ====="
+            sudo apt-get clean
+            sudo journalctl --vacuum-size=50M || true
+            sudo apt-get autoremove --purge -y || true
+            # Old deploy tree: rsync --delete leaves node_modules behind because
+            # it never existed in the bundle.
+            rm -rf ~/nodeapps/sprintboard-system-backend/node_modules || true
+
+            echo "===== disk after ====="
+            df -h /
+
+      # Optional and destructive. The host MySQL is being replaced by the
+      # MariaDB container; on a volume this small its data directory is often
+      # the difference between fitting and not. Off by default.
+      - name: Purge retired host MySQL data (opt-in)
+        if: ${{ inputs.purge_host_mysql }}
+        uses: JimCronqvist/action-ssh@master
+        with:
+          hosts: "ubuntu@${{ secrets.REMOTE_HOST }}"
+          privateKey: ${{ secrets.SERVER_SSH_KEY }}
+          debug: false
+          command: |
+            sudo du -sh /var/lib/mysql 2>/dev/null || true
+            sudo systemctl disable --now mysql || true
+            sudo systemctl disable --now mariadb || true
+            sudo apt-get purge -y 'mysql-server*' 'mariadb-server*' || true
+            sudo apt-get autoremove --purge -y || true
+            sudo rm -rf /var/lib/mysql
+            df -h /
+
+      # get.docker.com may not publish a repo for Ubuntu 26.04's codename yet,
+      # so prefer the distro packages and fall back to the convenience script.
+      - name: Install Docker
+        uses: JimCronqvist/action-ssh@master
+        with:
+          hosts: "ubuntu@${{ secrets.REMOTE_HOST }}"
+          privateKey: ${{ secrets.SERVER_SSH_KEY }}
+          debug: false
+          command: |
+            set -e
+            if command -v docker >/dev/null && docker compose version >/dev/null 2>&1; then
+              echo "Docker already present:"; docker --version; docker compose version; exit 0
+            fi
+
+            AVAIL=$(df --output=avail -BM / | tail -1 | tr -dc '0-9')
+            echo "Available on /: ${AVAIL}MB"
+            if [ "$AVAIL" -lt 2500 ]; then
+              echo "::error::Only ${AVAIL}MB free on /. Docker plus the images and build cache need ~2.5GB. Free space or grow the EBS volume before retrying."
+              exit 1
+            fi
+
+            sudo apt-get update
+            sudo apt-get install -y docker.io docker-compose-v2 \
+              || curl -fsSL https://get.docker.com | sudo sh
+
+            sudo systemctl enable --now docker
+            docker --version
+            docker compose version
+
       # Every command here is idempotent and safe to re-run: with no SSH access
       # to the box, this workflow is the only way to reach it.
       - name: Bring up the stack
@@ -81,11 +162,6 @@ jobs:
             cd nodeapps/sprintboard-system-backend
             chmod 600 .env
 
-            # Install Docker on first run. sudo docker is used throughout rather
-            # than adding ubuntu to the docker group, because group membership
-            # needs a fresh login session that a one-shot SSH action never gets.
-            command -v docker >/dev/null || curl -fsSL https://get.docker.com | sudo sh
-
             # Retire the old systemd deployment this replaces.
             sudo systemctl disable --now sprintboard-system-backend || true
             sudo rm -f /lib/systemd/system/sprintboard-system-backend.service
@@ -98,6 +174,12 @@ jobs:
 
             COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
             sudo $COMPOSE up -d --build
+
+            # Repeated --build deploys accumulate layers fast on a 6.6GB disk.
+            # Never use --volumes here: that would destroy the database.
+            sudo docker image prune -af
+            sudo docker builder prune -af
+            df -h /
 
       # init-db is NOT idempotent: user.email is unique and scripts/init-db.js
       # exits 1 on any error, so a second run collides on the seeded admin.
@@ -124,6 +206,12 @@ jobs:
           privateKey: ${{ secrets.SERVER_SSH_KEY }}
           debug: false
           command: |
+            echo "----- disk -----"
+            df -h /
+            if ! command -v docker >/dev/null; then
+              echo "docker is not installed — see the Install Docker step above"
+              exit 0
+            fi
             cd nodeapps/sprintboard-system-backend
             COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
             sudo $COMPOSE ps
