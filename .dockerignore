@@ -1,0 +1,10 @@
+node_modules
+.git
+.github
+coverage
+deploy
+tests
+# Injected at runtime via compose env_file — never bake secrets into a layer.
+.env
+.env.test
+npm-debug.log*

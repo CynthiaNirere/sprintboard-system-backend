@@ -1,8 +1,12 @@
 name: AWS DEPLOY TO STAGING
-# turn off deploy to AWS
 
 on:
   workflow_dispatch:
+    inputs:
+      seed_database:
+        description: "Run init-db:keep after deploy (first deploy only — not idempotent)"
+        type: boolean
+        default: false
   pull_request:
     types: [closed]
     branches:
@@ -13,28 +17,45 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DB_HOST: ${{ secrets.AWS_DB_HOST }}
-      DB_PW: ${{ secrets.AWS_DB_PW}}
+      DB_PW: ${{ secrets.AWS_DB_PW }}
       DB_USER: ${{ secrets.AWS_DB_USER }}
       DB_NAME: ${{ secrets.AWS_DB_NAME }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           ref: dev
       - uses: actions/setup-node@v4
         with:
-          node-version: '18'
-      - run: npm install
+          node-version: '20'
 
-      - run: |
-          touch .env
-          echo DB_HOST = "$DB_HOST" >> .env
-          echo DB_PW = "$DB_PW" >> .env
-          echo DB_USER = "$DB_USER" >> .env
-          echo DB_NAME = "$DB_NAME" >> .env
-          echo SECRET_KEY = "$SECRET_KEY" >> .env
+      # Values are single-quoted. Verified against Compose's env_file parser:
+      # an unquoted value truncates at the first " #" (a password of
+      # "secret #1" arrives as "secret", surfacing as "Access denied for
+      # user"), while a single-quoted one survives intact. The old
+      # `echo K = "$V"` form parsed the same as unquoted printf — the spaces
+      # around "=" were never the problem; the missing quotes were.
+      - name: Write .env for docker compose
+        run: |
+          set -eu
+          write_var() {
+            case "$2" in
+              *"'"*)
+                echo "::error::$1 contains a single quote and cannot be written safely to .env"
+                exit 1
+                ;;
+            esac
+            printf "%s='%s'\n" "$1" "$2" >> .env
+          }
+          : > .env
+          write_var DB_HOST "$DB_HOST"
+          write_var DB_USER "$DB_USER"
+          write_var DB_PW "$DB_PW"
+          write_var DB_NAME "$DB_NAME"
+          write_var SECRET_KEY "$SECRET_KEY"
 
+      # Assembles deploy/, which becomes the Docker build context on the box.
       - run: npm run bundle
 
       - name: Deploy to Server
@@ -46,20 +67,67 @@ jobs:
           REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
           REMOTE_USER: ubuntu
           TARGET: "nodeapps/sprintboard-system-backend"
-      - name: Execute SSH commmands on remote server
+
+      # Every command here is idempotent and safe to re-run: with no SSH access
+      # to the box, this workflow is the only way to reach it.
+      - name: Bring up the stack
         uses: JimCronqvist/action-ssh@master
-        env:
-          NAME: "Root"
+        with:
+          hosts: "ubuntu@${{ secrets.REMOTE_HOST }}"
+          privateKey: ${{ secrets.SERVER_SSH_KEY }}
+          debug: false
+          command: |
+            set -e
+            cd nodeapps/sprintboard-system-backend
+            chmod 600 .env
+
+            # Install Docker on first run. sudo docker is used throughout rather
+            # than adding ubuntu to the docker group, because group membership
+            # needs a fresh login session that a one-shot SSH action never gets.
+            command -v docker >/dev/null || curl -fsSL https://get.docker.com | sudo sh
+
+            # Retire the old systemd deployment this replaces.
+            sudo systemctl disable --now sprintboard-system-backend || true
+            sudo rm -f /lib/systemd/system/sprintboard-system-backend.service
+            sudo systemctl daemon-reload
+
+            # Free RAM and port 3306. Disabled, not just stopped, so a reboot
+            # does not resurrect it alongside the MariaDB container.
+            sudo systemctl disable --now mysql || true
+            sudo systemctl disable --now mariadb || true
+
+            COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
+            sudo $COMPOSE up -d --build
+
+      # init-db is NOT idempotent: user.email is unique and scripts/init-db.js
+      # exits 1 on any error, so a second run collides on the seeded admin.
+      # Run it once via dispatch, then leave this input off.
+      - name: Seed database (one-shot, opt-in)
+        if: ${{ inputs.seed_database }}
+        uses: JimCronqvist/action-ssh@master
+        with:
+          hosts: "ubuntu@${{ secrets.REMOTE_HOST }}"
+          privateKey: ${{ secrets.SERVER_SSH_KEY }}
+          debug: false
+          command: |
+            set -e
+            cd nodeapps/sprintboard-system-backend
+            COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
+            sudo $COMPOSE run --rm backend npm run init-db:keep
+
+      # With no SSH access, the Actions log is the only console onto the box.
+      - name: Diagnostics
+        if: always()
+        uses: JimCronqvist/action-ssh@master
         with:
           hosts: "ubuntu@${{ secrets.REMOTE_HOST }}"
           privateKey: ${{ secrets.SERVER_SSH_KEY }}
           debug: false
           command: |
             cd nodeapps/sprintboard-system-backend
-            sudo systemctl stop mysql
-            npm ci
-            sudo systemctl start mysql
-            sudo systemctl stop sprintboard-system-backend
-            sudo cp sprintboard-system-backend.service /lib/systemd/system/sprintboard-system-backend.service
-            sudo systemctl daemon-reload
-            sudo systemctl start sprintboard-system-backend
+            COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
+            sudo $COMPOSE ps
+            echo "----- backend logs -----"
+            sudo $COMPOSE logs --tail=100 backend
+            echo "----- db logs -----"
+            sudo $COMPOSE logs --tail=30 db
