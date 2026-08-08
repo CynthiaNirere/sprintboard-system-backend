@@ -29,7 +29,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: dev
+          # A manual dispatch deploys the ref you dispatched, so a feature
+          # branch can be tested on staging without merging first. The
+          # PR-close trigger always deploys dev, the integration branch.
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'dev' }}
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
