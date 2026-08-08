@@ -160,29 +160,35 @@ jobs:
           debug: false
           command: |
             set -e
+            # No early `exit 0` here. action-ssh never reaches its completion
+            # handler if the remote script exits mid-way, so the step gets
+            # marked failed and every later step is skipped. Use if/else.
             if command -v docker >/dev/null && docker compose version >/dev/null 2>&1; then
-              echo "Docker already present:"; docker --version; docker compose version; exit 0
+              echo "Docker already present:"
+              docker --version
+              docker compose version
+            else
+              # Measured, backend stack only: docker engine ~500MB, mariadb:11
+              # 465MB, backend image 337MB, DB volume ~150MB, npm ci build layer
+              # ~300MB transient. Peak ~1.75GB, settling to ~1.45GB after the
+              # prune at the end of the deploy. 1800MB is deliberately tight —
+              # a clean failure here beats an ENOSPC halfway through a build.
+              AVAIL=$(df --output=avail -BM / | tail -1 | tr -dc '0-9')
+              echo "Available on /: ${AVAIL}MB"
+              if [ "$AVAIL" -lt 1800 ]; then
+                # Deliberate failure — this one SHOULD stop the deploy.
+                echo "::error::Only ${AVAIL}MB free on /, need ~1800MB for the backend stack. Try dispatching with purge_host_mysql=true, or grow the EBS volume."
+                exit 1
+              fi
+
+              sudo apt-get update
+              sudo apt-get install -y docker.io docker-compose-v2 \
+                || curl -fsSL https://get.docker.com | sudo sh
+
+              sudo systemctl enable --now docker
+              docker --version
+              docker compose version
             fi
-
-            # Measured, backend stack only: docker engine ~500MB, mariadb:11
-            # 465MB, backend image 337MB, DB volume ~150MB, npm ci build layer
-            # ~300MB transient. Peak ~1.75GB, settling to ~1.45GB after the
-            # prune at the end of the deploy. 1800MB is deliberately tight —
-            # a clean failure here beats an ENOSPC halfway through a build.
-            AVAIL=$(df --output=avail -BM / | tail -1 | tr -dc '0-9')
-            echo "Available on /: ${AVAIL}MB"
-            if [ "$AVAIL" -lt 1800 ]; then
-              echo "::error::Only ${AVAIL}MB free on /, need ~1800MB for the backend stack. Try dispatching with purge_host_mysql=true, or grow the EBS volume."
-              exit 1
-            fi
-
-            sudo apt-get update
-            sudo apt-get install -y docker.io docker-compose-v2 \
-              || curl -fsSL https://get.docker.com | sudo sh
-
-            sudo systemctl enable --now docker
-            docker --version
-            docker compose version
 
       # Every command here is idempotent and safe to re-run: with no SSH access
       # to the box, this workflow is the only way to reach it.
@@ -243,14 +249,16 @@ jobs:
           command: |
             echo "----- disk -----"
             df -h /
+            # if/else rather than an early exit: action-ssh marks the step
+            # failed if the remote script exits before the end.
             if ! command -v docker >/dev/null; then
               echo "docker is not installed — see the Install Docker step above"
-              exit 0
+            else
+              cd nodeapps/sprintboard-system-backend
+              COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
+              sudo $COMPOSE ps
+              echo "----- backend logs -----"
+              sudo $COMPOSE logs --tail=100 backend
+              echo "----- db logs -----"
+              sudo $COMPOSE logs --tail=30 db
             fi
-            cd nodeapps/sprintboard-system-backend
-            COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
-            sudo $COMPOSE ps
-            echo "----- backend logs -----"
-            sudo $COMPOSE logs --tail=100 backend
-            echo "----- db logs -----"
-            sudo $COMPOSE logs --tail=30 db
