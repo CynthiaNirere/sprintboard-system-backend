@@ -190,7 +190,7 @@ exports.findProjectMembers = async (req, res) => {
     });
 
     if (!data) {
-      return res.status(404).send({ message: "Project not found." });
+      return res.status(404).send({ message: "Project members not found." });
     }
 
     res.status(200).send(data.users);
