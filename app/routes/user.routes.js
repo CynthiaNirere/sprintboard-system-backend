@@ -102,7 +102,7 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  router.get("/users/:id", [authenticateRoute, selfOrAdmin], User.findOne);
+  router.get("/users/:id", [authenticateRoute], User.findOne);
 
   /**
    * @swagger
