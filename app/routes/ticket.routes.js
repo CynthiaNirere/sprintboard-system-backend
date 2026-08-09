@@ -234,11 +234,20 @@ module.exports = (app) => {
    *             $ref: '#/components/schemas/TicketUpdateInput'
    *     responses:
    *       200:
-   *         description: Ticket updated (or not found / empty body).
+   *         description: >
+   *           Ticket updated (or not found / empty body). When the update moves
+   *           the ticket into a board status carrying a GitHub event, a
+   *           `github` object reports what the automation did. The ticket move
+   *           succeeds regardless of whether the GitHub call did.
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/Message'
+   *               allOf:
+   *                 - $ref: '#/components/schemas/Message'
+   *                 - type: object
+   *                   properties:
+   *                     github:
+   *                       $ref: '#/components/schemas/GithubAutomationResult'
    *       401:
    *         description: Not authenticated.
    */

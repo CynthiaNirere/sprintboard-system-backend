@@ -1,0 +1,14 @@
+# Local development only.
+#
+# Compose auto-loads this on a bare `docker compose up`, and skips it entirely
+# whenever -f is passed explicitly — which is how staging avoids it. Keeps the
+# wipe-and-seed-on-boot behaviour local dev has always had.
+services:
+  backend:
+    ports:
+      - "3200:3200"
+    command: sh -c "npm run init-db:wipe && npm start"
+
+  db:
+    ports:
+      - "3306:3306"

@@ -11,7 +11,10 @@ const swaggerSpec = require("./swaggerConfig");
 
 const startServer = async () => {
   try {
-    await db.sequelize.sync({ alter: false }); // update this to false or true when you update anything in models
+    // Keep this false. A failed ALTER against an existing schema logs
+    // "DB sync failed:" and exits, which is indistinguishable from a
+    // connection failure. Bare sync() still creates missing tables.
+    await db.sequelize.sync({ alter: true }); // flip to true once, locally, when models change
     console.log("Database synced.");
 
     if (process.env.NODE_ENV !== "test") {
@@ -26,14 +29,25 @@ const startServer = async () => {
 };
 
 var corsOptions = {
-  origin: "http://localhost:8081",
+  origin: process.env.CORS_ORIGIN || "http://localhost:8081",
 };
 
 app.use(cors(corsOptions));
 app.options("*", cors());
 
 // parse requests of content-type - application/json
-app.use(express.json());
+app.use(express.json({
+  // GitHub pull_request payloads routinely exceed the 100kb default.
+  limit: "1mb",
+  // The GitHub webhook signature is an HMAC over the exact bytes sent, which
+  // parsing throws away — keep them for that one route. This callback must
+  // never throw: an exception here would 400 every request on the server.
+  verify: (req, res, buf) => {
+    if (req.originalUrl && req.originalUrl.startsWith("/sprintboardapi/github/webhook")) {
+      req.rawBody = buf;
+    }
+  },
+}));
 
 // parse requests of content-type - application/x-www-form-urlencoded
 app.use(express.urlencoded({ extended: true }));
@@ -62,6 +76,9 @@ require("./app/routes/retrospective.routes.js")(app);
 require("./app/routes/retrospectiveItems.routes.js")(app);
 require("./app/routes/userActivityLog.routes.js")(app);
 require("./app/routes/testHistory.routes.js")(app);
+require("./app/routes/githubRepositories.routes.js")(app);
+require("./app/routes/githubWebhook.routes.js")(app);
+
 
 // set port, listen for requests
 const PORT = process.env.PORT || 3200;
