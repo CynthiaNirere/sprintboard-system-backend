@@ -13,8 +13,9 @@ const db = require("../models");
 const AUTOMATION_FIELD = "githubEvent";
 
 const AutomationEvents = {
-  // Outbound: cut a branch when a ticket lands in this column.
+  // Outbound: act on GitHub when a ticket lands in this column.
   CREATE_BRANCH: "CREATE_BRANCH",
+  CREATE_PR: "CREATE_PR",
   // Inbound: move a ticket into this column when its PR opens / merges.
   PR_OPENED: "PR_OPENED",
   PR_MERGED: "PR_MERGED",

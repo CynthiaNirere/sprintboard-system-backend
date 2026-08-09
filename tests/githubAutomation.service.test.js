@@ -24,6 +24,8 @@ jest.mock("../app/models", () => {
 jest.mock("../app/services/github.service", () => ({
   getRefSha: jest.fn(),
   createBranch: jest.fn(),
+  createPullRequest: jest.fn(),
+  findPullRequestForBranch: jest.fn(),
   validateToken: jest.fn(),
 }));
 
@@ -70,6 +72,11 @@ describe("runStatusChangeAutomation", () => {
     decrypt.mockResolvedValue("ghp_realtoken");
     github.getRefSha.mockResolvedValue("basesha");
     github.createBranch.mockResolvedValue({ created: true, ref: "refs/heads/x" });
+    github.createPullRequest.mockResolvedValue({
+      number: 7,
+      url: "https://github.com/acme/widgets/pull/7",
+    });
+    github.findPullRequestForBranch.mockResolvedValue(null);
   });
 
 
@@ -91,6 +98,18 @@ describe("runStatusChangeAutomation", () => {
 
       expect(await run()).toEqual({ ran: false, reason: "NO_EVENT" });
       expect(github.getRefSha).not.toHaveBeenCalled();
+    });
+
+
+    it.each([
+      ["pr_opened"],
+      ["pr_merged"],
+    ])("ignores the inbound %s event — that is the webhook's job", async (event) => {
+      BoardStatus.findByPk.mockResolvedValue({ id: 2, githubEvent: event });
+
+      expect(await run()).toEqual({ ran: false, reason: "NO_EVENT" });
+      expect(github.getRefSha).not.toHaveBeenCalled();
+      expect(github.createPullRequest).not.toHaveBeenCalled();
     });
 
 
@@ -347,7 +366,9 @@ describe("runStatusChangeAutomation", () => {
         ran: true,
         ok: false,
         code: "BASE_BRANCH_NOT_FOUND",
-        message: 'The repository has no branch named "dev".',
+        // A 404 means either cause, so the message must not blame only one.
+        message:
+          'The repository has no branch named "dev", or the token cannot see this repository.',
       });
       expect(github.createBranch).not.toHaveBeenCalled();
       expect(Ticket.update).not.toHaveBeenCalled();
@@ -399,6 +420,247 @@ describe("runStatusChangeAutomation", () => {
       const result = await run({ req: {} });
 
       expect(result.ok).toBe(true);
+    });
+
+  });
+
+
+  describe("pull request creation", () => {
+
+    const BRANCHED = {
+      ...TICKET,
+      description: "Users are bounced to / after signing in.",
+      githubBranchName: "bugfix/users-cannot-login",
+      githubBranchCreatedAt: new Date("2026-08-01T10:00:00Z"),
+    };
+
+    beforeEach(() => {
+      BoardStatus.findByPk.mockResolvedValue({ id: 4, githubEvent: "create_pr" });
+      Ticket.findByPk.mockResolvedValue({ ...BRANCHED });
+    });
+
+
+    it("opens a PR titled with the ticket title and bodied with its description", async () => {
+      const result = await run({ newStatusId: 4 });
+
+      expect(github.createPullRequest).toHaveBeenCalledWith({
+        token: "ghp_realtoken",
+        owner: "acme",
+        repo: "widgets",
+        head: "bugfix/users-cannot-login",
+        base: "dev",
+        title: "Fix the login redirect",
+        body: "Users are bounced to / after signing in.",
+      });
+
+      expect(result).toEqual({
+        ran: true,
+        ok: true,
+        pullRequestUrl: "https://github.com/acme/widgets/pull/7",
+        pullRequestNumber: 7,
+        alreadyExisted: false,
+        repoId: 3,
+      });
+    });
+
+
+    it("records the PR url on the ticket", async () => {
+      await run({ newStatusId: 4 });
+
+      expect(Ticket.update).toHaveBeenCalledWith(
+        { githubPrURL: "https://github.com/acme/widgets/pull/7", repoId: 3 },
+        { where: { id: 42 } }
+      );
+    });
+
+
+    it("never creates a branch", async () => {
+      await run({ newStatusId: 4 });
+
+      expect(github.createBranch).not.toHaveBeenCalled();
+      expect(github.getRefSha).not.toHaveBeenCalled();
+    });
+
+
+    it("skips when the ticket has no branch", async () => {
+      Ticket.findByPk.mockResolvedValue({ ...TICKET, githubBranchName: null });
+
+      const result = await run({ newStatusId: 4 });
+
+      expect(result).toEqual({ ran: false, reason: "NO_BRANCH" });
+      expect(github.createPullRequest).not.toHaveBeenCalled();
+      expect(Repo.findAll).not.toHaveBeenCalled();
+    });
+
+
+    it("skips when the branch name is only whitespace", async () => {
+      Ticket.findByPk.mockResolvedValue({ ...TICKET, githubBranchName: "   " });
+
+      expect(await run({ newStatusId: 4 })).toEqual({ ran: false, reason: "NO_BRANCH" });
+    });
+
+
+    it("does not open a second PR when one is already recorded", async () => {
+      Ticket.findByPk.mockResolvedValue({
+        ...BRANCHED,
+        githubPrURL: "https://github.com/acme/widgets/pull/3",
+        repoId: 3,
+      });
+
+      const result = await run({ newStatusId: 4 });
+
+      expect(github.createPullRequest).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        ran: true,
+        ok: true,
+        pullRequestUrl: "https://github.com/acme/widgets/pull/3",
+        alreadyExisted: true,
+        repoId: 3,
+      });
+    });
+
+
+    describe("when a pull request already exists on GitHub", () => {
+
+      const prExists = () => {
+        const err = new Error("A pull request for that branch already exists.");
+        err.name = "GithubApiError";
+        err.code = "PR_EXISTS";
+        github.createPullRequest.mockRejectedValue(err);
+      };
+
+
+      it("looks the existing PR up and records its url", async () => {
+        prExists();
+        github.findPullRequestForBranch.mockResolvedValue({
+          number: 3,
+          url: "https://github.com/acme/widgets/pull/3",
+        });
+
+        const result = await run({ newStatusId: 4 });
+
+        expect(github.findPullRequestForBranch).toHaveBeenCalledWith({
+          token: "ghp_realtoken",
+          owner: "acme",
+          repo: "widgets",
+          head: "bugfix/users-cannot-login",
+        });
+        expect(Ticket.update).toHaveBeenCalledWith(
+          { githubPrURL: "https://github.com/acme/widgets/pull/3", repoId: 3 },
+          { where: { id: 42 } }
+        );
+        expect(result).toEqual({
+          ran: true,
+          ok: true,
+          pullRequestUrl: "https://github.com/acme/widgets/pull/3",
+          pullRequestNumber: 3,
+          alreadyExisted: true,
+          repoId: 3,
+        });
+      });
+
+
+      it("logs it as a link rather than an open", async () => {
+        prExists();
+        github.findPullRequestForBranch.mockResolvedValue({
+          number: 3,
+          url: "https://github.com/acme/widgets/pull/3",
+        });
+
+        await run({ newStatusId: 4 });
+
+        expect(db.userActivityLog.create.mock.calls[0][0].detail).toContain("linked existing");
+      });
+
+
+      it("reports the state without a url when the PR cannot be found", async () => {
+        prExists();
+        github.findPullRequestForBranch.mockResolvedValue(null);
+
+        const result = await run({ newStatusId: 4 });
+
+        expect(result.ok).toBe(true);
+        expect(result.alreadyExisted).toBe(true);
+        expect(result.pullRequestUrl).toBeUndefined();
+        expect(Ticket.update).not.toHaveBeenCalled();
+      });
+
+
+      it("surfaces a failure of the lookup itself", async () => {
+        prExists();
+        const lookupErr = new Error("GitHub rejected the token.");
+        lookupErr.name = "GithubApiError";
+        lookupErr.code = "BAD_TOKEN";
+        github.findPullRequestForBranch.mockRejectedValue(lookupErr);
+
+        const result = await run({ newStatusId: 4 });
+
+        expect(result).toEqual({
+          ran: true,
+          ok: false,
+          code: "BAD_TOKEN",
+          message: "GitHub rejected the token.",
+        });
+        expect(Ticket.update).not.toHaveBeenCalled();
+      });
+
+    });
+
+
+    it("reports a branch with no commits without touching the ticket", async () => {
+      const err = new Error("The branch has no commits that the base branch does not already have.");
+      err.name = "GithubApiError";
+      err.code = "NO_COMMITS";
+      github.createPullRequest.mockRejectedValue(err);
+
+      const result = await run({ newStatusId: 4 });
+
+      expect(result).toEqual({
+        ran: true,
+        ok: false,
+        code: "NO_COMMITS",
+        message: "The branch has no commits that the base branch does not already have.",
+      });
+      expect(Ticket.update).not.toHaveBeenCalled();
+    });
+
+
+    it("sends an empty body when the ticket has no description", async () => {
+      Ticket.findByPk.mockResolvedValue({ ...BRANCHED, description: null });
+
+      await run({ newStatusId: 4 });
+
+      expect(github.createPullRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ body: null })
+      );
+    });
+
+
+    it("leaves an existing repoId alone", async () => {
+      Ticket.findByPk.mockResolvedValue({ ...BRANCHED, repoId: 3 });
+      Repo.findByPk.mockResolvedValue({ ...REPO });
+
+      await run({ newStatusId: 4 });
+
+      expect(Ticket.update.mock.calls[0][0]).not.toHaveProperty("repoId");
+    });
+
+
+    it("still reports NO_TOKEN when the acting user has none", async () => {
+      User.findByPk.mockResolvedValue({ id: 9, githubToken: null });
+
+      expect(await run({ newStatusId: 4 })).toEqual({ ran: false, reason: "NO_TOKEN" });
+      expect(github.createPullRequest).not.toHaveBeenCalled();
+    });
+
+
+    it("logs the pull request against the acting user", async () => {
+      await run({ newStatusId: 4 });
+
+      const logged = db.userActivityLog.create.mock.calls[0][0];
+      expect(logged.userId).toBe(9);
+      expect(logged.action).toBe("GitHub PR created");
+      expect(logged.detail).toContain("#7");
     });
 
   });
