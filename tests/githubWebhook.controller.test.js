@@ -35,7 +35,16 @@ jest.mock("../app/services/boardStatusAutomation", () => {
 const SECRET = "testsecret";
 const OTHER_SECRET = "a-different-repo-secret";
 
-const REPO = { id: 3, projectId: 1, owner: "acme", name: "widgets", webhookSecret: "encrypted-blob" };
+// name is the display label and is deliberately NOT the slug — the lookup must
+// use owner + repoSlug.
+const REPO = {
+  id: 3,
+  projectId: 1,
+  owner: "acme",
+  name: "Widgets API",
+  repoSlug: "widgets",
+  webhookSecret: "encrypted-blob",
+};
 const TICKET = { id: 42, title: "Users cannot login", projectId: 1, repoId: null };
 
 // pull_request is destructured out so overriding one of its keys merges rather
@@ -130,7 +139,7 @@ describe("GitHub webhook controller", () => {
       await webhook.handle(makeReq(prPayload()), res);
 
       expect(Repo.findOne).toHaveBeenCalledWith({
-        where: { owner: "acme", name: "widgets" },
+        where: { owner: "acme", repoSlug: "widgets" },
       });
     });
 

@@ -4,13 +4,6 @@ const { parseRepoUrl } = require("../services/githubUrl");
 const Repo = db.githubRepository;
 const Op = db.Sequelize.Op;
 
-/**
- * Turns a client-supplied webhookSecret into the column to persist.
- *
- * Returns { fields } on success, or { error: { status, message } } for the
- * caller to send straight back. null clears the stored secret, which disables
- * that repository's webhook.
- */
 const resolveWebhookSecret = async (rawSecret) => {
   if (rawSecret === null) {
     return { fields: { webhookSecret: null } };
@@ -44,9 +37,6 @@ exports.create = async (req, res) => {
     });
   }
 
-  // Create a Repo. name and owner are overwritten from url by the model's
-  // beforeValidate hook, so the value here is only a fallback for a url the
-  // parser cannot read.
   const repo = {
     url: req.body.url,
     name: req.body.name,
@@ -54,8 +44,6 @@ exports.create = async (req, res) => {
     developmentBranch: req.body.developmentBranch,
   };
 
-  // A webhook secret is optional at link time — the repo just cannot receive
-  // deliveries until one is set.
   if (req.body.webhookSecret !== undefined && req.body.webhookSecret !== null) {
     const resolved = await resolveWebhookSecret(req.body.webhookSecret);
     if (resolved.error) {
@@ -132,13 +120,11 @@ exports.update = async (req, res) => {
     updateData.webhookSecret = resolved.fields.webhookSecret;
   }
 
-  // Model.update runs as a bulk update, which does not fire the per-instance
-  // beforeValidate hook, so keep owner/name in step with a changed url here.
   if (updateData.url !== undefined) {
     const parsed = parseRepoUrl(updateData.url);
     if (parsed) {
       updateData.owner = parsed.owner;
-      updateData.name = parsed.repoName;
+      updateData.repoSlug = parsed.repoName;
     }
   }
 

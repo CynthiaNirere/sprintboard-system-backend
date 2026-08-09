@@ -134,14 +134,23 @@ const options = {
             url: { type: "string", example: "https://github.com/acme/widgets" },
             name: {
               type: "string",
-              example: "widgets",
-              description: "The GitHub repository slug. Derived from url — anything sent by a client is overwritten.",
+              example: "Widgets API",
+              description: "A display label chosen by whoever linked the repository. Free text.",
             },
             owner: {
               type: "string",
               nullable: true,
               example: "acme",
-              description: "Derived from url. Null when the url cannot be parsed.",
+              readOnly: true,
+              description: "The GitHub account or organisation. Derived from url. Null when the url cannot be parsed.",
+            },
+            repoSlug: {
+              type: "string",
+              nullable: true,
+              example: "widgets",
+              readOnly: true,
+              description:
+                "The GitHub repository slug. Derived from url. Webhook deliveries are matched on owner + repoSlug, so this is what identifies the repository to GitHub — not name.",
             },
             developmentBranch: { type: "string", example: "dev" },
             createdAt: { type: "string", format: "date-time" },
@@ -155,7 +164,8 @@ const options = {
             url: { type: "string", example: "https://github.com/acme/widgets" },
             name: {
               type: "string",
-              description: "Required, but overwritten with the slug parsed from url.",
+              example: "Widgets API",
+              description: "A display label for this repository. Free text, and freely renamable.",
             },
             projectId: { type: "integer" },
             developmentBranch: {

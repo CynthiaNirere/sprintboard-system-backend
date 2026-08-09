@@ -14,7 +14,7 @@ const startServer = async () => {
     // Keep this false. A failed ALTER against an existing schema logs
     // "DB sync failed:" and exits, which is indistinguishable from a
     // connection failure. Bare sync() still creates missing tables.
-    await db.sequelize.sync({ alter: false }); // flip to true once, locally, when models change
+    await db.sequelize.sync({ alter: true }); // flip to true once, locally, when models change
     console.log("Database synced.");
 
     if (process.env.NODE_ENV !== "test") {
@@ -29,8 +29,6 @@ const startServer = async () => {
 };
 
 var corsOptions = {
-  // Deployed, the frontend calls the API same-origin through the Apache
-  // ProxyPass, so CORS does not apply. This is for direct cross-origin use.
   origin: process.env.CORS_ORIGIN || "http://localhost:8081",
 };
 
