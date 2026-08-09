@@ -38,3 +38,22 @@ exports.findAll = async (req, res) => {
     });
   }
 };
+
+// Retrieve all test history logs for one test
+exports.findAllForTest = async (req, res) => {
+  const testId = req.params.id;
+
+  try {
+    const data = await TestHistory.findAll({
+      where: {
+        testId: testId
+      },
+      order: [["createdAt", "DESC"]],
+    });
+    res.send(data);
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || `An error occurred retrieving test history log for test with id= ${testId}`,
+    });
+  }
+};

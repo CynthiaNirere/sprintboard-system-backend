@@ -1,6 +1,5 @@
 module.exports = (app) => {
   const Test = require("../controllers/test.controller.js");
-  const TestHistory = require("../controllers/testHistory.controller.js");
   const { authenticateRoute } = require("../authentication/authentication");
   const isAdmin = require("../middleware/isAdmin");
 
