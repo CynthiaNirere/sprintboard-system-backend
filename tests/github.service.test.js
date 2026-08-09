@@ -1,6 +1,13 @@
 const github = require("../app/services/github.service");
 
-const { GithubApiError, getRefSha, createBranch, validateToken } = github;
+const {
+  GithubApiError,
+  getRefSha,
+  createBranch,
+  createPullRequest,
+  findPullRequestForBranch,
+  validateToken,
+} = github;
 
 const TOKEN = "ghp_abcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -154,6 +161,157 @@ describe("github.service", () => {
       await expect(
         createBranch({ token: TOKEN, owner: "acme", repo: "widgets", branch: "..", sha: "abc" })
       ).rejects.toMatchObject({ code: "INVALID" });
+    });
+
+  });
+
+
+  describe("createPullRequest", () => {
+
+    const args = {
+      token: TOKEN,
+      owner: "acme",
+      repo: "widgets",
+      head: "bugfix/users-cannot-login",
+      base: "dev",
+      title: "Fix the login redirect",
+      body: "Users are bounced to / after signing in.",
+    };
+
+
+    it("opens the pull request and returns its number and url", async () => {
+      global.fetch.mockResolvedValue(
+        okResponse({ number: 7, html_url: "https://github.com/acme/widgets/pull/7" })
+      );
+
+      const result = await createPullRequest(args);
+
+      expect(result).toEqual({ number: 7, url: "https://github.com/acme/widgets/pull/7" });
+
+      const [url, options] = global.fetch.mock.calls[0];
+      expect(url).toBe("https://api.github.com/repos/acme/widgets/pulls");
+      expect(options.method).toBe("POST");
+      expect(JSON.parse(options.body)).toEqual({
+        title: "Fix the login redirect",
+        body: "Users are bounced to / after signing in.",
+        head: "bugfix/users-cannot-login",
+        base: "dev",
+      });
+    });
+
+
+    it("sends an empty string body rather than null", async () => {
+      global.fetch.mockResolvedValue(okResponse({ number: 8, html_url: "u" }));
+
+      await createPullRequest({ ...args, body: null });
+
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body).body).toBe("");
+    });
+
+
+    it("maps an existing pull request to PR_EXISTS", async () => {
+      // GitHub puts the useful text in errors[], not the top-level message.
+      global.fetch.mockResolvedValue(
+        errorResponse(422, {
+          message: "Validation Failed",
+          errors: [{ message: "A pull request already exists for acme:bugfix/users-cannot-login." }],
+        })
+      );
+
+      await expect(createPullRequest(args)).rejects.toMatchObject({ code: "PR_EXISTS" });
+    });
+
+
+    it("maps an empty branch to NO_COMMITS", async () => {
+      global.fetch.mockResolvedValue(
+        errorResponse(422, {
+          message: "Validation Failed",
+          errors: [{ message: "No commits between dev and bugfix/users-cannot-login" }],
+        })
+      );
+
+      await expect(createPullRequest(args)).rejects.toMatchObject({ code: "NO_COMMITS" });
+    });
+
+
+    it("maps any other validation failure to INVALID", async () => {
+      global.fetch.mockResolvedValue(
+        errorResponse(422, {
+          message: "Validation Failed",
+          errors: [{ message: "Field 'head' is invalid" }],
+        })
+      );
+
+      await expect(createPullRequest(args)).rejects.toMatchObject({ code: "INVALID" });
+    });
+
+
+    it("never leaks the token when it appears inside errors[]", async () => {
+      global.fetch.mockResolvedValue(
+        errorResponse(422, { message: "Validation Failed", errors: [{ message: TOKEN }] })
+      );
+
+      let caught;
+      try {
+        await createPullRequest(args);
+      } catch (err) {
+        caught = err;
+      }
+
+      expect(`${caught.message} ${caught.stack}`).not.toContain(TOKEN);
+    });
+
+  });
+
+
+  describe("findPullRequestForBranch", () => {
+
+    const args = {
+      token: TOKEN,
+      owner: "acme",
+      repo: "widgets",
+      head: "bugfix/users-cannot-login",
+    };
+
+
+    it("returns the first open pull request for the branch", async () => {
+      global.fetch.mockResolvedValue(
+        okResponse([
+          { number: 3, html_url: "https://github.com/acme/widgets/pull/3" },
+          { number: 9, html_url: "https://github.com/acme/widgets/pull/9" },
+        ])
+      );
+
+      expect(await findPullRequestForBranch(args)).toEqual({
+        number: 3,
+        url: "https://github.com/acme/widgets/pull/3",
+      });
+    });
+
+
+    it("qualifies the head filter with the owner and asks only for open PRs", async () => {
+      global.fetch.mockResolvedValue(okResponse([]));
+
+      await findPullRequestForBranch(args);
+
+      expect(global.fetch.mock.calls[0][0]).toBe(
+        "https://api.github.com/repos/acme/widgets/pulls" +
+          "?head=acme%3Abugfix%2Fusers-cannot-login&state=open"
+      );
+    });
+
+
+    it("returns null when nothing matches", async () => {
+      global.fetch.mockResolvedValue(okResponse([]));
+
+      expect(await findPullRequestForBranch(args)).toBeNull();
+    });
+
+
+    it("returns null when the response is not a list", async () => {
+      global.fetch.mockResolvedValue(okResponse(null));
+
+      expect(await findPullRequestForBranch(args)).toBeNull();
     });
 
   });

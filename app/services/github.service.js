@@ -37,10 +37,28 @@ const readBody = async (res) => {
 };
 
 /**
+ * Flattens GitHub's error text. Validation failures put the useful part in an
+ * errors[] array ("No commits between main and x") and leave the top-level
+ * message as a generic "Validation Failed".
+ */
+const detailFrom = (body) => {
+  if (!body) return "";
+
+  const parts = [];
+  if (typeof body.message === "string") parts.push(body.message);
+  if (Array.isArray(body.errors)) {
+    body.errors.forEach((e) => {
+      if (e && typeof e.message === "string") parts.push(e.message);
+    });
+  }
+  return parts.join(" ");
+};
+
+/**
  * Maps a non-2xx response onto a GithubApiError. Never includes the token.
  */
 const toError = (res, body) => {
-  const detail = (body && body.message) || "";
+  const detail = detailFrom(body);
 
   if (res.status === 401) {
     return new GithubApiError("BAD_TOKEN", 401, "GitHub rejected the token.");
@@ -75,6 +93,18 @@ const toError = (res, body) => {
   }
 
   if (res.status === 422) {
+    // Order matters: "A pull request already exists" would also match the
+    // branch-level /already exists/ test below.
+    if (/pull request already exists/i.test(detail)) {
+      return new GithubApiError("PR_EXISTS", 422, "A pull request for that branch already exists.");
+    }
+    if (/no commits between/i.test(detail)) {
+      return new GithubApiError(
+        "NO_COMMITS",
+        422,
+        "The branch has no commits that the base branch does not already have."
+      );
+    }
     if (/already exists/i.test(detail)) {
       return new GithubApiError("REF_EXISTS", 422, "That branch already exists.");
     }
@@ -94,9 +124,21 @@ const toError = (res, body) => {
  * which is captured at construction and cannot be edited afterwards).
  */
 const redactToken = (body, token) => {
-  if (!body || typeof body.message !== "string" || !token) return body;
-  if (!body.message.includes(token)) return body;
-  return { ...body, message: body.message.split(token).join("[redacted]") };
+  if (!body || !token) return body;
+
+  const scrub = (text) =>
+    typeof text === "string" && text.includes(token)
+      ? text.split(token).join("[redacted]")
+      : text;
+
+  const cleaned = { ...body };
+  if (typeof cleaned.message === "string") cleaned.message = scrub(cleaned.message);
+  if (Array.isArray(cleaned.errors)) {
+    cleaned.errors = cleaned.errors.map((e) =>
+      e && typeof e.message === "string" ? { ...e, message: scrub(e.message) } : e
+    );
+  }
+  return cleaned;
 };
 
 const request = async (path, options) => {
@@ -175,6 +217,55 @@ const createBranch = async ({ token, owner, repo, branch, sha }) => {
 };
 
 /**
+ * Opens a pull request from `head` into `base`.
+ *
+ * GitHub rejects a PR whose branch has no commits the base does not already
+ * have, and rejects a second PR for the same branch — both surface as
+ * NO_COMMITS and PR_EXISTS rather than a generic 422.
+ *
+ * @return {Promise<{number: number, url: string}>}
+ */
+const createPullRequest = async ({ token, owner, repo, head, base, title, body }) => {
+  const json = await request(
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls`,
+    {
+      token: token,
+      method: "POST",
+      body: {
+        title: title,
+        // GitHub rejects a null body; an empty string is fine.
+        body: body || "",
+        head: head,
+        base: base,
+      },
+    }
+  );
+
+  return { number: json && json.number, url: json && json.html_url };
+};
+
+/**
+ * Finds the open pull request for a branch, if there is one.
+ *
+ * GitHub's "a pull request already exists" error does not include the pull
+ * request itself, so this is how that url gets recovered.
+ *
+ * @return {Promise<{number: number, url: string} | null>}
+ */
+const findPullRequestForBranch = async ({ token, owner, repo, head }) => {
+  // The head filter is qualified with the owner of the branch's repository.
+  const query = `head=${encodeURIComponent(`${owner}:${head}`)}&state=open`;
+
+  const json = await request(
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls?${query}`,
+    { token: token }
+  );
+
+  if (!Array.isArray(json) || json.length === 0) return null;
+  return { number: json[0].number, url: json[0].html_url };
+};
+
+/**
  * Confirms a token works and reports who it belongs to. Used at connect time so
  * a bad token is caught then rather than when someone drags a card.
  * @return {Promise<{login: string, scopes: string[]}>}
@@ -194,5 +285,7 @@ module.exports = {
   GithubApiError,
   getRefSha,
   createBranch,
+  createPullRequest,
+  findPullRequestForBranch,
   validateToken,
 };

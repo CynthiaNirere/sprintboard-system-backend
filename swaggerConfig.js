@@ -219,15 +219,26 @@ const options = {
           properties: {
             ran: { type: "boolean", example: true },
             ok: { type: "boolean", example: true },
-            branch: { type: "string", example: "feature/ticket-42-fix-the-login-redirect" },
+            branch: {
+              type: "string",
+              example: "bugfix/users-cannot-login",
+              description: "Present for a create_branch column.",
+            },
+            pullRequestUrl: {
+              type: "string",
+              example: "https://github.com/acme/widgets/pull/7",
+              description: "Present for a create_pr column.",
+            },
+            pullRequestNumber: { type: "integer", example: 7 },
             alreadyExisted: {
               type: "boolean",
-              description: "True when the branch was already present on GitHub or already recorded on the ticket.",
+              description:
+                "True when the branch or pull request was already present on GitHub, or already recorded on the ticket.",
             },
             repoId: { type: "integer", nullable: true },
             reason: {
               type: "string",
-              description: "Why no branch was attempted.",
+              description: "Why nothing was attempted.",
               enum: [
                 "NO_EVENT",
                 "TICKET_NOT_FOUND",
@@ -237,6 +248,7 @@ const options = {
                 "REPO_URL_UNPARSEABLE",
                 "NO_TOKEN",
                 "TOKEN_UNREADABLE",
+                "NO_BRANCH",
               ],
             },
             code: {
@@ -249,6 +261,7 @@ const options = {
                 "NOT_FOUND",
                 "BASE_BRANCH_NOT_FOUND",
                 "INVALID_BRANCH_NAME",
+                "NO_COMMITS",
                 "INVALID",
                 "TIMEOUT",
                 "NETWORK",
