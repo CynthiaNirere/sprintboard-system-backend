@@ -40,7 +40,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin privileges required.
    */
-  router.post("/test/", [authenticateRoute, isAdmin], Test.create);
+  router.post("/test/", authenticateRoute, Test.create);
 
   /**
    * @swagger
@@ -60,7 +60,7 @@ module.exports = (app) => {
    *       401:
    *         description: Not authenticated.
    */
-  router.get("/test/", authenticateRoute, Test.findAll);
+  router.get("/ticket/:ticketId/test/", authenticateRoute, Test.findAll);
 
   /**
    * @swagger
@@ -114,7 +114,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin privileges required.
    */
-  router.put("/test/:id", [authenticateRoute, isAdmin], Test.update);
+  router.put("/test/:id", authenticateRoute, Test.update);
 
   /**
    * @swagger
@@ -138,7 +138,7 @@ module.exports = (app) => {
    *       403:
    *         description: Admin privileges required.
    */
-  router.delete("/test/:id", [authenticateRoute, isAdmin], Test.delete);
+  router.delete("/test/:id", authenticateRoute, Test.delete);
 
   /**
    * @swagger

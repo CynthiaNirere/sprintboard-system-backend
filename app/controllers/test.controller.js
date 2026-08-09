@@ -24,6 +24,7 @@ exports.create = async (req, res) => {
     title: req.body.title,
     description: req.body.description,
     status: req.body.status,
+    findings: req.body.findings || null,
     ownerId: req.body.userId,
     ticketId: req.body.ticketId,
   };
@@ -40,8 +41,14 @@ exports.create = async (req, res) => {
 
 // Retrieve all Tests
 exports.findAll = async (req, res) => {
+  const ticketId = req.params.ticketId;
+  
   try {
-    const data = await Test.findAll();
+    const data = await Test.findAll({
+      where: {
+        ticketId: ticketId
+      }
+    });
     res.send(data);
   } catch (err) {
     res.status(500).send({
