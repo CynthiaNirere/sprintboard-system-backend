@@ -79,11 +79,14 @@ exports.handle = async (req, res) => {
       return res.status(202).send({ message: "No repository on this event." });
     }
 
-    const [owner, name] = fullName.split("/");
+    const [owner, repoSlug] = fullName.split("/");
+    // Matched on the derived pair, never on `name` — that is a display label a
+    // user can rename freely.
+    //
     // MySQL's default collation is case-insensitive, so Acme/Widgets matches
     // acme/widgets. A _bin or _cs collation would need LOWER() on both sides.
     const repo = await Repo.scope("withWebhookSecret").findOne({
-      where: { owner: owner, name: name },
+      where: { owner: owner, repoSlug: repoSlug },
     });
     if (!repo) {
       return res.status(202).send({ message: "Repository is not linked to a project." });
