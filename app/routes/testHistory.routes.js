@@ -5,7 +5,9 @@ module.exports = (app) => {
 
   router.post("/test/:id/history", authenticateRoute, TestHistory.create);
 
-  router.get("/ticket/:ticketId/test/", authenticateRoute, TestHistory.findAll);
+  router.get("/test/history/all", authenticateRoute, TestHistory.findAll);
+
+  router.get("/test/:id/history", authenticateRoute, TestHistory.findAllForTest);
 
   app.use("/sprintboardapi", router);
 };
