@@ -1,17 +1,23 @@
-version: '3.8'
-
 services:
   backend:
     build: .
     container_name: backend
-    ports:
-      - "3200:3200"
     env_file:
       - .env
     depends_on:
       db:
         condition: service_healthy
-    command: sh -c "npm run init-db:wipe && npm start"
+    # Deliberately non-destructive. Seeding is opt-in: locally it comes from
+    # docker-compose.override.yaml, on staging from a one-shot `compose run`.
+    command: npm start
+    restart: unless-stopped
+    # Docker's json-file driver is UNBOUNDED by default. Without this, container
+    # logs grow until the disk fills — a real risk on a 6.6GB volume.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - jira_network
 
@@ -19,12 +25,11 @@ services:
   db:
     image: mariadb:11
     container_name: mariadb_db
-    ports:
-      - "3306:3306"
     env_file:
       - .env
     environment:
-      # Maps variables from your host's .env file into MariaDB config
+      # Maps variables from your host's .env file into MariaDB config.
+      # Only root is provisioned here, so DB_USER must be "root".
       - MARIADB_ROOT_PASSWORD=${DB_PW}
       - MARIADB_DATABASE=${DB_NAME}
       - MARIADB_PASSWORD=${DB_PW}
@@ -35,6 +40,12 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - jira_network
 

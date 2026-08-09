@@ -84,7 +84,20 @@ const options = {
             username: { type: "string" },
             email: { type: "string", format: "email" },
             password: { type: "string", format: "password" },
-            githubAccount: { type: "string", nullable: true },
+            githubAccount: {
+              type: "string",
+              nullable: true,
+              description: "Overwritten by the verified login when a githubToken is supplied.",
+            },
+            githubToken: {
+              type: "string",
+              format: "password",
+              nullable: true,
+              writeOnly: true,
+              description:
+                "Optional. A GitHub personal access token — prefer a fine-grained token scoped to the single repository with 'Contents: Read and write', since a classic 'repo' token grants access to every repository the user can see. When supplied it is verified against GitHub, stored AES-256-GCM encrypted, and never returned by any endpoint.",
+              example: "github_pat_11ABCDEFG0abcdefghijkl_...",
+            },
           },
         },
         UserUpdateInput: {
@@ -95,8 +108,177 @@ const options = {
             firstName: { type: "string" },
             lastName: { type: "string" },
             email: { type: "string", format: "email" },
-            githubAccount: { type: "string", nullable: true },
+            githubAccount: {
+              type: "string",
+              nullable: true,
+              description: "Overwritten by the verified login when a githubToken is supplied.",
+            },
             globalRole: { type: "string", enum: ["ADMIN", "USER"] },
+            githubToken: {
+              type: "string",
+              format: "password",
+              nullable: true,
+              writeOnly: true,
+              description:
+                "Send a token to connect or replace the GitHub account — it is verified against GitHub before being stored encrypted. Send null to clear the stored token. Omit the field to leave it untouched.",
+              example: "github_pat_11ABCDEFG0abcdefghijkl_...",
+            },
+          },
+        },
+
+        Repo: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 3 },
+            projectId: { type: "integer" },
+            url: { type: "string", example: "https://github.com/acme/widgets" },
+            name: {
+              type: "string",
+              example: "Widgets API",
+              description: "A display label chosen by whoever linked the repository. Free text.",
+            },
+            owner: {
+              type: "string",
+              nullable: true,
+              example: "acme",
+              readOnly: true,
+              description: "The GitHub account or organisation. Derived from url. Null when the url cannot be parsed.",
+            },
+            repoSlug: {
+              type: "string",
+              nullable: true,
+              example: "widgets",
+              readOnly: true,
+              description:
+                "The GitHub repository slug. Derived from url. Webhook deliveries are matched on owner + repoSlug, so this is what identifies the repository to GitHub — not name.",
+            },
+            developmentBranch: { type: "string", example: "dev" },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        RepoInput: {
+          type: "object",
+          required: ["url", "name", "projectId", "developmentBranch"],
+          properties: {
+            url: { type: "string", example: "https://github.com/acme/widgets" },
+            name: {
+              type: "string",
+              example: "Widgets API",
+              description: "A display label for this repository. Free text, and freely renamable.",
+            },
+            projectId: { type: "integer" },
+            developmentBranch: {
+              type: "string",
+              description: "The branch new ticket branches are cut from. Must exist on GitHub.",
+            },
+            webhookSecret: {
+              type: "string",
+              format: "password",
+              nullable: true,
+              writeOnly: true,
+              description:
+                "Optional. The secret configured on this repository's GitHub webhook, used to verify delivery signatures. Stored encrypted and never returned by any endpoint — if it is lost, send a new one and update GitHub to match. Send null to clear it, which disables the webhook for this repository.",
+            },
+          },
+        },
+        GithubWebhookPayload: {
+          type: "object",
+          description: "The subset of GitHub's pull_request payload this endpoint reads.",
+          properties: {
+            action: {
+              type: "string",
+              example: "opened",
+              description: "opened and reopened map to pr_opened; closed with merged=true maps to pr_merged. Everything else is ignored.",
+            },
+            repository: {
+              type: "object",
+              properties: {
+                full_name: { type: "string", example: "acme/widgets" },
+              },
+            },
+            pull_request: {
+              type: "object",
+              properties: {
+                number: { type: "integer", example: 42 },
+                merged: { type: "boolean" },
+                html_url: { type: "string", example: "https://github.com/acme/widgets/pull/42" },
+                head: {
+                  type: "object",
+                  properties: {
+                    ref: { type: "string", example: "bugfix/users-cannot-login" },
+                  },
+                },
+              },
+            },
+          },
+        },
+        GithubTokenStatus: {
+          type: "object",
+          description: "Whether a user has a GitHub token on file. The token itself is never returned.",
+          properties: {
+            connected: { type: "boolean", example: true },
+            updatedAt: { type: "string", format: "date-time", nullable: true },
+            githubAccount: { type: "string", nullable: true, example: "justin-walraven" },
+          },
+        },
+        GithubAutomationResult: {
+          type: "object",
+          description:
+            "Present on PUT /ticket/{id} only when the update moved the ticket into a board status carrying a GitHub event. The ticket move itself always succeeds — check `ok` to see whether the GitHub side worked.",
+          properties: {
+            ran: { type: "boolean", example: true },
+            ok: { type: "boolean", example: true },
+            branch: {
+              type: "string",
+              example: "bugfix/users-cannot-login",
+              description: "Present for a create_branch column.",
+            },
+            pullRequestUrl: {
+              type: "string",
+              example: "https://github.com/acme/widgets/pull/7",
+              description: "Present for a create_pr column.",
+            },
+            pullRequestNumber: { type: "integer", example: 7 },
+            alreadyExisted: {
+              type: "boolean",
+              description:
+                "True when the branch or pull request was already present on GitHub, or already recorded on the ticket.",
+            },
+            repoId: { type: "integer", nullable: true },
+            reason: {
+              type: "string",
+              description: "Why nothing was attempted.",
+              enum: [
+                "NO_EVENT",
+                "TICKET_NOT_FOUND",
+                "NO_REPO_LINKED",
+                "AMBIGUOUS_REPO",
+                "REPO_PROJECT_MISMATCH",
+                "REPO_URL_UNPARSEABLE",
+                "NO_TOKEN",
+                "TOKEN_UNREADABLE",
+                "NO_BRANCH",
+              ],
+            },
+            code: {
+              type: "string",
+              description: "Why the GitHub call failed.",
+              enum: [
+                "BAD_TOKEN",
+                "FORBIDDEN",
+                "RATE_LIMITED",
+                "NOT_FOUND",
+                "BASE_BRANCH_NOT_FOUND",
+                "INVALID_BRANCH_NAME",
+                "NO_COMMITS",
+                "INVALID",
+                "TIMEOUT",
+                "NETWORK",
+                "UNKNOWN",
+              ],
+            },
+            message: { type: "string" },
           },
         },
 
@@ -268,8 +450,24 @@ const options = {
             type: { type: "string", enum: ["FEATURE", "ENHANCEMENT", "BUG"] },
             priority: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"], nullable: true },
             storyPoints: { type: "integer", nullable: true, enum: [0, 1, 2, 3, 5, 8, 13, 21, 34, 55] },
-            githubBranchName: { type: "string", nullable: true },
-            githubPrURL: { type: "string", nullable: true },
+            githubBranchName: {
+              type: "string",
+              nullable: true,
+              description:
+                "The branch name to use. Set it to choose your own; leave it empty and the automation generates one from the ticket type and title. Once githubBranchCreatedAt is set the branch exists and changing this field no longer creates anything.",
+            },
+            githubBranchCreatedAt: {
+              type: "string",
+              format: "date-time",
+              nullable: true,
+              readOnly: true,
+              description: "Set by the automation when the branch is actually created on GitHub.",
+            },
+            githubPrURL: {
+              type: "string",
+              nullable: true,
+              description: "Set by the GitHub webhook when a pull request for this ticket's branch opens.",
+            },
             githubIssueNumber: { type: "integer", nullable: true },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
@@ -295,7 +493,12 @@ const options = {
             sprintId: { type: "integer", nullable: true },
             assigneeId: { type: "integer", nullable: true },
             storyPoints: { type: "integer", nullable: true, enum: [0, 1, 2, 3, 5, 8, 13, 21, 34, 55] },
-            githubBranchName: { type: "string", nullable: true },
+            githubBranchName: {
+              type: "string",
+              nullable: true,
+              description:
+                "Optional. The exact branch name to create when this ticket reaches a CREATE_BRANCH board status. Leave it empty to get the generated convention. An illegal git ref name is reported back as INVALID_BRANCH_NAME when the automation runs.",
+            },
             githubPrURL: { type: "string", nullable: true },
             githubIssueNumber: { type: "integer", nullable: true },
           },
@@ -313,7 +516,12 @@ const options = {
             sprintId: { type: "integer", nullable: true },
             assigneeId: { type: "integer", nullable: true },
             storyPoints: { type: "integer", nullable: true, enum: [0, 1, 2, 3, 5, 8, 13, 21, 34, 55] },
-            githubBranchName: { type: "string", nullable: true },
+            githubBranchName: {
+              type: "string",
+              nullable: true,
+              description:
+                "Optional. The exact branch name to create when this ticket reaches a CREATE_BRANCH board status. Leave it empty to get the generated convention. An illegal git ref name is reported back as INVALID_BRANCH_NAME when the automation runs.",
+            },
             githubPrURL: { type: "string", nullable: true },
             githubIssueNumber: { type: "integer", nullable: true },
           },

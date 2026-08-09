@@ -8,13 +8,13 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install production dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy the remaining application source code
 COPY . .
 
-# Expose the port your Express app listens on (e.g., 3000)
-EXPOSE 3000
+# Expose the port your Express app listens on
+EXPOSE 3200
 
 # Define the command to launch your backend
 CMD ["node", "server.js"]

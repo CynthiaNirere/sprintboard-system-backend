@@ -72,6 +72,9 @@ typings/
 .env
 .env.test
 
+# build artifact produced by `npm run bundle`
+deploy/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 

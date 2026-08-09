@@ -1,5 +1,6 @@
 const ticketController = require("../app/controllers/ticket.controller");
 const db = require("../app/models");
+const githubAutomation = require("../app/services/githubAutomation.service");
 
 const Ticket = db.ticket;
 
@@ -17,6 +18,10 @@ jest.mock("../app/models", () => ({
       like: Symbol("like"),
     },
   },
+}));
+
+jest.mock("../app/services/githubAutomation.service", () => ({
+  runStatusChangeAutomation: jest.fn(),
 }));
 
 describe("Ticket Controller", () => {
@@ -352,6 +357,154 @@ describe("Ticket Controller", () => {
 
       expect(res.status)
         .toHaveBeenCalledWith(500);
+    });
+
+  });
+
+
+
+  describe("update — GitHub branch automation", () => {
+
+    beforeEach(() => {
+      req.params.id = 1;
+      Ticket.update.mockResolvedValue([1]);
+      Ticket.findByPk.mockResolvedValue({ id: 1, title: "A ticket", statusId: 5 });
+      githubAutomation.runStatusChangeAutomation.mockResolvedValue({
+        ran: false,
+        reason: "NO_EVENT",
+      });
+    });
+
+
+    it("does not run automation when the body has no statusId", async () => {
+      req.body = { title: "Updated" };
+
+      await ticketController.update(req, res);
+
+      expect(githubAutomation.runStatusChangeAutomation).not.toHaveBeenCalled();
+      expect(res.send).toHaveBeenCalledWith({
+        message: "Ticket was updated successfully.",
+      });
+    });
+
+
+    it("does not run automation when the status is unchanged", async () => {
+      req.body = { statusId: 5 };
+
+      await ticketController.update(req, res);
+
+      expect(githubAutomation.runStatusChangeAutomation).not.toHaveBeenCalled();
+    });
+
+
+    it("treats a string statusId matching the stored number as unchanged", async () => {
+      req.body = { statusId: "5" };
+
+      await ticketController.update(req, res);
+
+      expect(githubAutomation.runStatusChangeAutomation).not.toHaveBeenCalled();
+    });
+
+
+    it("runs automation once when the status actually changes", async () => {
+      req.body = { statusId: 6 };
+      req.userId = 9;
+
+      await ticketController.update(req, res);
+
+      expect(githubAutomation.runStatusChangeAutomation).toHaveBeenCalledTimes(1);
+      expect(githubAutomation.runStatusChangeAutomation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ticketId: 1,
+          newStatusId: 6,
+          actingUserId: 9,
+        })
+      );
+    });
+
+
+    it("omits the github key when no automation was configured", async () => {
+      req.body = { statusId: 6 };
+
+      await ticketController.update(req, res);
+
+      expect(res.send).toHaveBeenCalledWith({
+        message: "Ticket was updated successfully.",
+      });
+    });
+
+
+    it("reports the branch when automation succeeds", async () => {
+      req.body = { statusId: 6 };
+      githubAutomation.runStatusChangeAutomation.mockResolvedValue({
+        ran: true,
+        ok: true,
+        branch: "bugfix/ticket-1-a-ticket",
+        alreadyExisted: false,
+        repoId: 3,
+      });
+
+      await ticketController.update(req, res);
+
+      expect(res.send).toHaveBeenCalledWith({
+        message: "Ticket was updated successfully.",
+        github: {
+          ran: true,
+          ok: true,
+          branch: "bugfix/ticket-1-a-ticket",
+          alreadyExisted: false,
+          repoId: 3,
+        },
+      });
+    });
+
+
+    it("still succeeds when the GitHub call failed", async () => {
+      req.body = { statusId: 6 };
+      githubAutomation.runStatusChangeAutomation.mockResolvedValue({
+        ran: true,
+        ok: false,
+        code: "BAD_TOKEN",
+        message: "GitHub rejected the token.",
+      });
+
+      await ticketController.update(req, res);
+
+      expect(res.status).not.toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith({
+        message: "Ticket was updated successfully.",
+        github: {
+          ran: true,
+          ok: false,
+          code: "BAD_TOKEN",
+          message: "GitHub rejected the token.",
+        },
+      });
+    });
+
+
+    it("still succeeds when the automation itself throws", async () => {
+      req.body = { statusId: 6 };
+      githubAutomation.runStatusChangeAutomation.mockRejectedValue(
+        new Error("boom")
+      );
+
+      await ticketController.update(req, res);
+
+      expect(res.status).not.toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith({
+        message: "Ticket was updated successfully.",
+      });
+    });
+
+
+    it("skips automation when the ticket could not be read beforehand", async () => {
+      req.body = { statusId: 6 };
+      Ticket.findByPk.mockResolvedValue(null);
+
+      await ticketController.update(req, res);
+
+      expect(githubAutomation.runStatusChangeAutomation).not.toHaveBeenCalled();
     });
 
   });

@@ -7,6 +7,71 @@ const Op = db.Sequelize.Op;
 const { encrypt, decrypt, getSalt, hashPassword } = require("../authentication/crypto");
 const UserActivityLog = db.userActivityLog;
 const { LogActions } = require("../config/userActivityLogActions");
+const github = require("../services/github.service");
+
+// Shapes a GitHub personal access token can take: classic (ghp_/gho_/ghu_/
+// ghs_/ghr_), fine-grained (github_pat_), or a legacy 40-char hex token.
+const GITHUB_PAT_PATTERN =
+  /^(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|[a-f0-9]{40})$/;
+
+/**
+ * Turns a client-supplied githubToken into the columns to persist.
+ *
+ * Returns { fields } on success, or { error: { status, message } } for the
+ * caller to send straight back. A null token clears the stored one; anything
+ * else is shape-checked and verified against GitHub before being encrypted, so
+ * a typo or a revoked token is caught now rather than when someone moves a
+ * ticket.
+ */
+const resolveGithubToken = async (rawToken) => {
+  if (rawToken === null) {
+    return { fields: { githubToken: null, githubTokenUpdatedAt: null } };
+  }
+
+  if (typeof rawToken !== "string" || rawToken.trim() === "") {
+    return { error: { status: 400, message: "githubToken cannot be empty!" } };
+  }
+
+  const trimmed = rawToken.trim();
+  if (!GITHUB_PAT_PATTERN.test(trimmed)) {
+    return {
+      error: {
+        status: 400,
+        message: "That does not look like a GitHub personal access token.",
+      },
+    };
+  }
+
+  let login;
+  try {
+    const result = await github.validateToken(trimmed);
+    login = result.login;
+  } catch (err) {
+    if (err.code === "BAD_TOKEN") {
+      return { error: { status: 400, message: "GitHub rejected this token." } };
+    }
+    if (err.code === "RATE_LIMITED") {
+      return {
+        error: {
+          status: 503,
+          message: "GitHub is rate limiting requests. Try again shortly.",
+        },
+      };
+    }
+    return {
+      error: { status: 502, message: "Could not reach GitHub to verify the token." },
+    };
+  }
+
+  const fields = {
+    githubToken: await encrypt(trimmed),
+    githubTokenUpdatedAt: new Date(),
+  };
+  // The verified login is more trustworthy than whatever the client typed.
+  if (login) fields.githubAccount = login;
+
+  return { fields: fields };
+};
 
 // Create and Save a new User (registration)
 exports.create = async (req, res) => {
@@ -44,6 +109,17 @@ exports.create = async (req, res) => {
       return res.status(400).send({ message: "This email is already in use." });
     }
 
+    // A GitHub token is optional at registration. Resolve it before creating
+    // anything so a bad token cannot leave a half-registered user behind.
+    let githubFields = { githubToken: null, githubTokenUpdatedAt: null };
+    if (req.body.githubToken !== undefined && req.body.githubToken !== null) {
+      const resolved = await resolveGithubToken(req.body.githubToken);
+      if (resolved.error) {
+        return res.status(resolved.error.status).send({ message: resolved.error.message });
+      }
+      githubFields = resolved.fields;
+    }
+
     let salt = await getSalt();
     let hash = await hashPassword(req.body.password, salt);
 
@@ -57,7 +133,11 @@ exports.create = async (req, res) => {
       salt: salt,
       globalRole: 'USER',
       githubAccount: req.body.githubAccount || null,
+      githubToken: githubFields.githubToken ?? null,
+      githubTokenUpdatedAt: githubFields.githubTokenUpdatedAt ?? null,
     };
+    // A verified GitHub login beats whatever the client typed.
+    if (githubFields.githubAccount) user.githubAccount = githubFields.githubAccount;
 
     try {
       const createdUser = await User.create(user);
@@ -145,7 +225,7 @@ exports.findAll = async (req, res) => {
   try {
     const data = await User.findAll({
       where: condition,
-      attributes: { exclude: ["password", "salt"] },
+      attributes: { exclude: ["password", "salt", "githubToken"] },
     });
     res.send(data);
   } catch (err) {
@@ -161,7 +241,7 @@ exports.findOne = async (req, res) => {
 
   try {
     const data = await User.findByPk(id, {
-      attributes: { exclude: ["password", "salt"] },
+      attributes: { exclude: ["password", "salt", "githubToken"] },
       include: [{model: db.project, include: [{model:db.sprint, as: "projectSprints"}]}],
     });
     if (data) {
@@ -187,7 +267,7 @@ exports.findByEmail = async (req, res) => {
       where: {
         email: email,
       },
-      attributes: { exclude: ["password", "salt"] },
+      attributes: { exclude: ["password", "salt", "githubToken"] },
     });
     if (data) {
       res.send(data);
@@ -223,9 +303,21 @@ exports.update = async (req, res) => {
   const id = req.params.id;
   const requestedById = req.userId;
 
-  const { username, firstName, lastName, email, githubAccount, globalRole } = req.body;
-  const updateData = { username, firstName, lastName, email, githubAccount, globalRole };
+  const { username, firstName, lastName, email, githubAccount, globalRole, githubToken } = req.body;
+  const updateData = { username, firstName, lastName, email, githubAccount, globalRole, githubToken };
+  // Strips absent fields but keeps an explicit null, which is what lets
+  // githubToken: null clear a stored token.
   Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+
+  // Swap the raw token for the columns to persist before it reaches the DB.
+  if (updateData.githubToken !== undefined) {
+    const resolved = await resolveGithubToken(updateData.githubToken);
+    if (resolved.error) {
+      return res.status(resolved.error.status).send({ message: resolved.error.message });
+    }
+    delete updateData.githubToken;
+    Object.assign(updateData, resolved.fields);
+  }
 
   try {
     // Verify the GitHub account, if one was provided.
@@ -335,6 +427,32 @@ exports.deleteAll = async (req, res) => {
     res.status(500).send({
       message:
         err.message || "Some error occurred while removing all users.",
+    });
+  }
+};
+
+// Report whether a user has a GitHub token on file. Never decrypts it and
+// never calls GitHub.
+exports.getGithubTokenStatus = async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const data = await User.scope("withGithubToken").findByPk(id, {
+      attributes: ["id", "githubAccount", "githubToken", "githubTokenUpdatedAt"],
+    });
+    if (!data) {
+      return res.status(404).send({
+        message: `Cannot find User with id = ${id}.`,
+      });
+    }
+    res.send({
+      connected: data.githubToken != null,
+      updatedAt: data.githubTokenUpdatedAt || null,
+      githubAccount: data.githubAccount || null,
+    });
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || "Error retrieving the GitHub token status for user with id = " + id,
     });
   }
 };
