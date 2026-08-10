@@ -11,10 +11,6 @@ on:
           - keep
           - wipe
         default: none
-      purge_host_mysql:
-        description: "DESTRUCTIVE: uninstall host MySQL/MariaDB and delete /var/lib/mysql to reclaim disk"
-        type: boolean
-        default: false
   pull_request:
     types: [closed]
     branches:
@@ -135,25 +131,6 @@ jobs:
             echo "===== still-large directories (not auto-removed) ====="
             sudo du -sh /var/lib/mysql /var/www /var/log /var/lib/snapd /home/ubuntu 2>/dev/null || true
 
-      # Optional and destructive. The host MySQL is being replaced by the
-      # MariaDB container; on a volume this small its data directory is often
-      # the difference between fitting and not. Off by default.
-      - name: Purge retired host MySQL data (opt-in)
-        if: ${{ inputs.purge_host_mysql }}
-        uses: JimCronqvist/action-ssh@master
-        with:
-          hosts: "ubuntu@${{ secrets.REMOTE_HOST }}"
-          privateKey: ${{ secrets.SERVER_SSH_KEY }}
-          debug: false
-          command: |
-            sudo du -sh /var/lib/mysql 2>/dev/null || true
-            sudo systemctl disable --now mysql || true
-            sudo systemctl disable --now mariadb || true
-            sudo apt-get purge -y 'mysql-server*' 'mariadb-server*' || true
-            sudo apt-get autoremove --purge -y || true
-            sudo rm -rf /var/lib/mysql
-            df -h /
-
       # get.docker.com may not publish a repo for Ubuntu 26.04's codename yet,
       # so prefer the distro packages and fall back to the convenience script.
       - name: Install Docker
@@ -261,28 +238,3 @@ jobs:
             COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
             echo "Seeding mode: ${{ inputs.seed_mode }}"
             sudo $COMPOSE run --rm backend npm run init-db:${{ inputs.seed_mode }}
-
-      # With no SSH access, the Actions log is the only console onto the box.
-      - name: Diagnostics
-        if: always()
-        uses: JimCronqvist/action-ssh@master
-        with:
-          hosts: "ubuntu@${{ secrets.REMOTE_HOST }}"
-          privateKey: ${{ secrets.SERVER_SSH_KEY }}
-          debug: false
-          command: |
-            echo "----- disk -----"
-            df -h /
-            # if/else rather than an early exit: action-ssh marks the step
-            # failed if the remote script exits before the end.
-            if ! command -v docker >/dev/null; then
-              echo "docker is not installed — see the Install Docker step above"
-            else
-              cd nodeapps/sprintboard-system-backend
-              COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.prod.yaml"
-              sudo $COMPOSE ps
-              echo "----- backend logs -----"
-              sudo $COMPOSE logs --tail=100 backend
-              echo "----- db logs -----"
-              sudo $COMPOSE logs --tail=30 db
-            fi
