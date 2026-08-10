@@ -614,6 +614,33 @@ const options = {
             retroId: { type: "integer" },
           },
         },
+
+        Comment: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 1 },
+            content: { type: "string" },
+            userId: { type: "integer" },
+            ticketId: { type: "integer", nullable: true },
+            createdAt: { type: "string", format: "date-time" },
+            user: {
+              type: "object",
+              description: "Included on GET /comment/ticket/{ticketId}.",
+              properties: { firstName: { type: "string" }, lastName: { type: "string" } },
+            },
+          },
+        },
+        CommentInput: {
+          type: "object",
+          required: ["content", "userId", "ticketId"],
+          description:
+            "Any \"@First Last\" text in content that matches a real user by first/last name triggers an email notification to that user. This has no effect on the response.",
+          properties: {
+            content: { type: "string", example: "Looks good, @Priya Shah can you take a look?" },
+            userId: { type: "integer" },
+            ticketId: { type: "integer" },
+          },
+        },
       },
     },
     // Applied to every operation by default; individual login route overrides
