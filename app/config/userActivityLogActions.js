@@ -1,7 +1,7 @@
-
 const LogActions = {
   LOGIN: "Login",
   LOGOUT: "Logout",
+  USER_CREATED: "User created",
   GLOBAL_ROLE_CHANGED: "Global role changed",
   PROJECT_ROLE_CHANGED: "Project role changed",
   PROJECT_CREATED: "Project created",

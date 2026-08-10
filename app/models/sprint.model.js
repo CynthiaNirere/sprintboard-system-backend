@@ -1,5 +1,4 @@
 const {Op} = require('sequelize');
-const {Op} = require('sequelize');
 module.exports = (sequelize, Sequelize, DataTypes) => {
   const Sprint = sequelize.define("sprint", {
     name: {

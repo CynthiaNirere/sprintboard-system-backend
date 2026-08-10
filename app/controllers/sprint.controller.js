@@ -55,7 +55,6 @@ exports.create = async (req, res) => {
     res.send(data);
   } catch (err) {
     res.status(400).send({
-    res.status(400).send({
       message: err.message || "Some error occurred while creating the Sprint.",
     });
   }
@@ -94,7 +93,6 @@ exports.createRecurring = async (req, res) => {
     const data = await Sprint.bulkCreate(sprints,{individualHooks: true});
     res.send(data);
   } catch (err) {
-    res.status(400).send({
     res.status(400).send({
       message: err.message || "Some error occurred while creating recurring Sprints.",
     });
@@ -183,7 +181,6 @@ exports.update = async (req, res) => {
     const num = await Sprint.update(req.body, {
       where: { id: id },
       individualHooks: true
-      individualHooks: true
     });
     if (num == 1) {
       const requestedById = req.userId;
@@ -210,7 +207,6 @@ exports.update = async (req, res) => {
       });
     }
   } catch (err) {
-    res.status(400).send({
     res.status(400).send({
       message: err.message || "Error updating Sprint with id=" + id,
     });

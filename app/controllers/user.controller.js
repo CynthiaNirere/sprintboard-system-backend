@@ -1,11 +1,9 @@
 const db = require("../models");
 const { authenticate } = require("../authentication/authentication");
-const { authenticate } = require("../authentication/authentication");
 const User = db.user;
 const Project = db.project;
 const Session = db.session;
 const Op = db.Sequelize.Op;
-const { encrypt, decrypt, getSalt, hashPassword } = require("../authentication/crypto");
 const { encrypt, decrypt, getSalt, hashPassword } = require("../authentication/crypto");
 const UserActivityLog = db.userActivityLog;
 const { LogActions } = require("../config/userActivityLogActions");
@@ -194,32 +192,9 @@ exports.create = async (req, res) => {
           loggedDetail = ` created a new account.`;
         }     
 
-        let auth = req.get("authorization");
-        let loggedUserId = null;
-        let loggedDetail = "";
-
-        if (auth != null && auth.startsWith("Bearer")) {
-          let token = auth.slice(7);
-          let sessionId = await decrypt(token);
-          if (sessionId != null) {
-            const adminSession = await Session.findByPk(sessionId);
-
-            if (adminSession) {
-              loggedUserId = adminSession.userId;
-              loggedDetail = ` created a new user account for ${userInfo.firstName} ${userInfo.lastName}`;
-            }
-          }
-        }
-
-        if (!loggedUserId) {
-          loggedUserId = userId;
-          loggedDetail = ` created a new account.`;
-        }     
-
         await UserActivityLog.create({
           userId: loggedUserId,
           action: LogActions.USER_CREATED,
-          detail: loggedDetail,
           detail: loggedDetail,
           ipAddress: req.ip,
           userAgent: req.headers['user-agent']
@@ -345,6 +320,16 @@ exports.update = async (req, res) => {
   }
 
   try {
+    // Verify the GitHub account, if one was provided.
+    if (updateData.githubAccount) {
+      const isValidGithub = await verifyGithubAccount(updateData.githubAccount);
+      if (!isValidGithub) {
+        return res.status(400).send({
+          message: `"${updateData.githubAccount}" doesn't look like a real GitHub account.`,
+        });
+      }
+    }
+
     // Check if only 1 global role of "ADMIN" remains in the app, prevent the last occurrence of Admin being updated to "USER"
     if (updateData.globalRole === "USER") {
       try {
@@ -375,9 +360,7 @@ exports.update = async (req, res) => {
     if (number == 1) {
       // Only log a role change if globalRole was actually part of this
       if (updateData.globalRole) {
-        // Not every update carries a globalRole — an update that only changes,
-      // say, the GitHub token must not blow up here.
-      let formattedGlobalRole = (updateData.globalRole || "").toLowerCase();
+        let formattedGlobalRole = updateData.globalRole.toLowerCase();
         formattedGlobalRole = formattedGlobalRole.charAt(0).toUpperCase() + formattedGlobalRole.substring(1);
 
         try {

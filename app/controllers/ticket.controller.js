@@ -4,8 +4,7 @@ const BoardStatus = db.boardStatus;
 const Op = db.Sequelize.Op;
 const UserActivityLog = db.userActivityLog;
 const { LogActions } = require("../config/userActivityLogActions");
-const UserActivityLog = db.userActivityLog;
-const { LogActions } = require("../config/userActivityLogActions");
+const githubAutomation = require("../services/githubAutomation.service");
 
 // Create and Save a Ticket
 exports.create = async (req, res) => {
@@ -29,28 +28,12 @@ exports.create = async (req, res) => {
     assigneeId: req.body.assigneeId ?? null,
     projectId: req.body.projectId ?? null,
     sprintId: req.body.sprintId ?? null,
-    statusId: req.body.statusId ,
     repoId: req.body.repoId ?? null,
     statusId: req.body.statusId ?? null,
   };
 
   try {
     const data = await Ticket.create(ticket);
-    const requestedById = req.userId;
-
-    // Log the action to the user activity log
-    try {
-      await UserActivityLog.create({
-        userId: requestedById,
-        action: LogActions.TICKET_CREATED,
-        detail: ` created ticket "${ticket.title}"`,
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent']
-      });
-    } catch (error) {
-      console.log("Error writing TICKET_CREATED action to User Activity Log: ", error);
-    }
-
     const requestedById = req.userId;
 
     // Log the action to the user activity log
