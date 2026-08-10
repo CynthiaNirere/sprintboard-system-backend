@@ -3,7 +3,6 @@ const ticketController = require("../../app/controllers/ticket.controller.js");
 const { callController } = require("../lib/call-controller.js");
 
 export function registerTicketTools(server) {
-  //  Retrieve ticket Data 
 
   server.addTool({
     name: "get_ticket",
@@ -49,6 +48,23 @@ export function registerTicketTools(server) {
           query: { projectId: args.projectId },
         })
       ),
+  });
+
+  server.addTool({
+    name: "get_tickets_by_status",
+    description:
+      "Get all tickets in a sprint that currently have a specific status (e.g. everything in 'Ready for Test'). Use this — not a title search — whenever the request refers to a status or column name, since a ticket's own title can coincidentally match a status name too.",
+    parameters: z.object({
+      sprintId: z.number(),
+      statusId: z.number(),
+    }),
+    execute: async (args) => {
+      const allTickets = await callController(ticketController.findBySprint, {
+        params: { sprintId: args.sprintId },
+      });
+      const filtered = allTickets.filter((t) => t.statusId === args.statusId);
+      return JSON.stringify(filtered);
+    },
   });
 
   server.addTool({

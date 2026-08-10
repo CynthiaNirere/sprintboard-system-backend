@@ -39,6 +39,7 @@ exports.chat = async (req, res) => {
           "Before acting or answering, check whether the request is scoped clearly enough:\n" +
           "- If they ask about tickets (e.g. 'how many tickets') without saying which sprint, ask which sprint they mean, or whether they want the whole project, rather than picking one yourself.\n" +
           "- If they ask to move, update, rename, or delete a ticket by title or status rather than a specific id, and multiple sprints exist, ask which sprint that ticket is in before acting.\n" +
+          "- When they refer to a ticket by its current status or column (e.g. 'the ticket in Ready for Test', 'move the ticket from In Progress'), use get_tickets_by_status to find it — never search for a ticket whose title happens to match the status name, since those are different things.\n" +
           "- Never guess which sprint or project based on whichever one you happened to look at most recently in this conversation — ask explicitly instead.\n" +
           "- Only skip asking when the developer has already told you which sprint or project they mean, or when only one could possibly apply.\n\n" +
           "When the developer asks you to create or update something but hasn't given you enough information to call the relevant tool yet, ask for exactly what's missing before calling it — don't guess or invent values. Only ask for fields the tool actually accepts; don't assume a field exists just because it would make sense for the item type.",
