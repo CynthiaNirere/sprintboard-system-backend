@@ -25,7 +25,11 @@ jobs:
       DB_USER: ${{ secrets.AWS_DB_USER }}
       DB_NAME: ${{ secrets.AWS_DB_NAME }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
-
+      EMAIL_HOST: ${{ secrets.AWS_EMAIL_HOST }}
+      EMAIL_PORT: ${{ secrets.AWS_EMAIL_PORT }}
+      EMAIL_USER: ${{ secrets.AWS_EMAIL_USER }}
+      EMAIL_PASS: ${{ secrets.AWS_EMAIL_PASS }}
+      
     steps:
       - uses: actions/checkout@v4
         with:
@@ -61,6 +65,10 @@ jobs:
           write_var DB_PW "$DB_PW"
           write_var DB_NAME "$DB_NAME"
           write_var SECRET_KEY "$SECRET_KEY"
+          write_var EMAIL_HOST "$EMAIL_HOST"
+          write_var EMAIL_PORT "$EMAIL_PORT"
+          write_var EMAIL_USER "$EMAIL_USER"
+          write_var EMAIL_PASS "$EMAIL_PASS"
 
       # Assembles deploy/, which becomes the Docker build context on the box.
       - run: npm run bundle
