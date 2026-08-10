@@ -7,12 +7,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Deliberately non-destructive. Seeding is opt-in: locally it comes from
-    # docker-compose.override.yaml, on staging from a one-shot `compose run`.
+
     command: npm start
     restart: unless-stopped
-    # Docker's json-file driver is UNBOUNDED by default. Without this, container
-    # logs grow until the disk fills — a real risk on a 6.6GB volume.
     logging:
       driver: json-file
       options:
@@ -28,8 +25,6 @@ services:
     env_file:
       - .env
     environment:
-      # Maps variables from your host's .env file into MariaDB config.
-      # Only root is provisioned here, so DB_USER must be "root".
       - MARIADB_ROOT_PASSWORD=${DB_PW}
       - MARIADB_DATABASE=${DB_NAME}
       - MARIADB_PASSWORD=${DB_PW}
@@ -49,7 +44,6 @@ services:
     networks:
       - jira_network
 
-# Persistent volume so data is not lost when containers stop
 volumes:
   mariadb_data:
 networks:

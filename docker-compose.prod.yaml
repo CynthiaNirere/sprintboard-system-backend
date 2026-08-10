@@ -5,17 +5,10 @@
 services:
   backend:
     environment:
-      # The container reaches MariaDB by compose service name. The AWS_DB_HOST
-      # secret is "localhost", which inside the container points at the
-      # container itself — this override is what prevents ECONNREFUSED.
       DB_HOST: db
-      # The mariadb image only provisions root (see MARIADB_* in the base file),
-      # so pin the user regardless of what AWS_DB_USER holds.
       DB_USER: root
       NODE_ENV: production
     ports:
-      # Loopback only — the frontend container reaches the API over the compose
-      # network. This binding exists purely for debugging from the box.
       - "127.0.0.1:3200:3200"
 
   db:
