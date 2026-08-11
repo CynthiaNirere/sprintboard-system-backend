@@ -12,52 +12,39 @@ const createTransporter = () => {
   });
 };
 
-exports.sendOrderConfirmationEmail = async (toEmail, orderDetails) => {
+exports.sendMentionNotification = async (toEmail, commentData) => {
   try {
-    const { orderId, showTitle, eventDate, eventTime, tickets, totalAmount } = orderDetails;
+    const { ticketId, authorName, content } = commentData;
     const transporter = createTransporter();
 
+    const context = `Ticket #${ticketId}`
+
     const mailOptions = {
-      from: `"Planetarium Box Office" <${process.env.EMAIL_USER}>`,
+      from: `"SprintBoard Notifications" <${process.env.EMAIL_USER}>`,
       to: toEmail,
-      subject: `Booking Confirmed — ${showTitle}`,
+      subject: `${authorName} mentioned you in ${context}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #7b2d5e; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1 style="margin:0;">Planetarium</h1>
-            <p style="margin:4px 0 0; opacity:0.85;">Booking Confirmed</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px;">
+          <div style="background: #4c6df0; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+            <h2 style="margin:0;">SprintBoard</h2>
           </div>
-          <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
-            <p>Hi there! Your booking is confirmed. Here are your details:</p>
-            <div style="background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0;">
-              <p style="margin: 8px 0;"><strong>Show:</strong> ${showTitle}</p>
-              <p style="margin: 8px 0;"><strong>Date:</strong> ${eventDate}</p>
-              <p style="margin: 8px 0;"><strong>Time:</strong> ${eventTime}</p>
-              <p style="margin: 8px 0;"><strong>Tickets:</strong> ${tickets.length}</p>
-              ${tickets.map(t => `
-                <div style="margin: 8px 0; padding-left: 16px; display: flex; align-items: center; gap: 12px;">
-                    <div>
-                    <p style="margin: 0;">• Seat ${t.seatLabel} — ${t.ticketType}</p>
-                    </div>
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(t.qrCode)}&size=80x80" 
-                        alt="QR Code" style="width:80px; height:80px; border:1px solid #eee; border-radius:4px;" />
-                </div>
-                `).join('')}
-              <hr style="border: none; border-top: 1px solid #eee; margin: 12px 0;">
-              <p style="margin: 8px 0;"><strong>Total:</strong> $${parseFloat(totalAmount).toFixed(2)}</p>
-              <p style="margin: 8px 0;"><strong>Booking Ref:</strong> <span style="background:#f0f0f0; padding: 2px 8px; border-radius: 4px;">#${orderId}</span></p>
+          <div style="background: #f8f7f7; padding: 30px; border-radius: 0 0 8px 8px;">
+            <p>Hi there,</p>
+            <p><strong>${authorName}</strong> mentioned you in a comment:</p>
+            <div style="background: #fcfcfc; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <p style="margin: 8px 0;"><em>"${content}</em></p>
             </div>
-            <p style="color: #888; font-size: 12px; text-align: center;">Please arrive 10 minutes before showtime. This is an automated message.</p>
+            <p style="color: #888; font-size: 12px; text-align: center;">This is an automated notification from your workspace.</p>
           </div>
         </div>
       `,
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(' Confirmation email sent:', info.messageId);
+    console.log('Mention notification sent:', info.messageId);
     return { success: true };
   } catch (error) {
-    console.error('Failed to send confirmation email:', error);
+    console.error('Failed to send mention email:', error);
     return { success: false, error: error.message };
   }
 };

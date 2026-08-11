@@ -1,6 +1,8 @@
 const db = require("../models");
 const Test = db.test;
 const Op = db.Sequelize.Op;
+const UserActivityLog = db.userActivityLog;
+const { LogActions } = require("../config/userActivityLogActions");
 
 // Create and Save a Test
 exports.create = async (req, res) => {
@@ -74,12 +76,27 @@ exports.findOne = async (req, res) => {
 // Update a Test by the id in the request
 exports.update = async (req, res) => {
   const id = req.params.id;
+  const test = await Test.findByPk(id);
 
   try {
     const num = await Test.update(req.body, {
       where: { id: id },
     });
     if (num == 1) {
+      const requestedById = req.userId;
+
+      try {
+        await UserActivityLog.create({
+          userId: requestedById,
+          action: LogActions.TEST_STATUS_CHANGED,
+          detail: ` updated test ${test.title}`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing TEST_STATUS_CHANGED action to User Activity Log: ", error);
+      }      
+
       res.send({
         message: "Test was updated successfully.",
       });

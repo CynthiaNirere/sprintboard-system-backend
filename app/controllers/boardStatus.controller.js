@@ -2,6 +2,8 @@ const db = require("../models");
 const BoardStatus = db.boardStatus;
 const Ticket = db.ticket;
 const Op = db.Sequelize.Op;
+const UserActivityLog = db.userActivityLog;
+const { LogActions } = require("../config/userActivityLogActions");
 
 // Create and Save a boardStatus
 exports.create = async (req, res) => {
@@ -107,12 +109,27 @@ exports.findOneByColumn = async (req, res) => {
 // Update a boardStatus by the id in the request
 exports.update = async (req, res) => {
   const id = req.params.id;
+  const status = await BoardStatus.findByPk(id);
 
   try {
     const num = await BoardStatus.update(req.body, {
       where: { id: id },
     });
     if (num == 1) {
+      const requestedById = req.userId;
+
+      try {
+        await UserActivityLog.create({
+          userId: requestedById,
+          action: LogActions.BOARD_STATUS_UPDATED,
+          detail: ` updated board status ${status.name}`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing BOARD_STATUS_UPDATED action to User Activity Log: ", error);
+      }
+
       res.send({
         message: "boardStatus was updated successfully.",
       });
