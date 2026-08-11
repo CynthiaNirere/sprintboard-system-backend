@@ -25,6 +25,8 @@ jobs:
       DB_USER: ${{ secrets.AWS_DB_USER }}
       DB_NAME: ${{ secrets.AWS_DB_NAME }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
       EMAIL_HOST: ${{ secrets.AWS_EMAIL_HOST }}
       EMAIL_PORT: ${{ secrets.AWS_EMAIL_PORT }}
       EMAIL_USER: ${{ secrets.AWS_EMAIL_USER }}

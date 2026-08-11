@@ -74,6 +74,7 @@ require("./app/routes/test.routes.js")(app);
 require("./app/routes/ticket.routes.js")(app);
 require("./app/routes/retrospective.routes.js")(app);
 require("./app/routes/retrospectiveItems.routes.js")(app);
+require("./app/routes/chat.routes.js")(app);
 require("./app/routes/userActivityLog.routes.js")(app);
 require("./app/routes/testHistory.routes.js")(app);
 require("./app/routes/githubRepositories.routes.js")(app);
