@@ -47,6 +47,16 @@ module.exports = (app) => {
    *               $ref: '#/components/schemas/Error'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/comment/", authenticateRoute, Comment.create);
 
@@ -65,7 +75,9 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: Array of comments for the ticket.
+   *         description: >
+   *           Array of comments for the ticket. Empty if the ticket has none, or
+   *           does not exist.
    *         content:
    *           application/json:
    *             schema:
@@ -74,6 +86,16 @@ module.exports = (app) => {
    *                 $ref: '#/components/schemas/Comment'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/comment/ticket/:ticketId", authenticateRoute, Comment.findAllForTicket);
 

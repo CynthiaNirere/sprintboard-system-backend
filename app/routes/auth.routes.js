@@ -35,6 +35,12 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error while creating the session.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/login", auth.login);
 
@@ -50,11 +56,19 @@ module.exports = (app) => {
    *     tags: [Auth]
    *     responses:
    *       200:
-   *         description: Logged out (or was already logged out).
+   *         description: >
+   *           Logged out. An unrecognised or already-expired token is also a
+   *           200 ("Already logged out."), not a 401.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       500:
+   *         description: Server error while destroying the session.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/logout", auth.logout);
 

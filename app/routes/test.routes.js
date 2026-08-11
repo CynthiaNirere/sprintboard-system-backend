@@ -16,7 +16,8 @@ module.exports = (app) => {
    * @swagger
    * /test:
    *   post:
-   *     summary: Create a new test (acceptance criterion) on a ticket (Admin only)
+   *     summary: Create a new test (acceptance criterion) on a ticket
+   *     description: Any authenticated user may create a test.
    *     tags: [Tests]
    *     requestBody:
    *       required: true
@@ -37,20 +38,37 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
-   *       403:
-   *         description: Admin privileges required.
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/test/", authenticateRoute, Test.create);
 
   /**
    * @swagger
-   * /test:
+   * /ticket/{ticketId}/test:
    *   get:
-   *     summary: Retrieve all tests
+   *     summary: Retrieve the tests attached to one ticket
    *     tags: [Tests]
+   *     parameters:
+   *       - in: path
+   *         name: ticketId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: The ticket whose tests to return.
    *     responses:
    *       200:
-   *         description: Array of tests.
+   *         description: Array of tests for the ticket. Empty if the ticket has none, or does not exist.
    *         content:
    *           application/json:
    *             schema:
@@ -59,6 +77,16 @@ module.exports = (app) => {
    *                 $ref: '#/components/schemas/Test'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/ticket/:ticketId/test/", authenticateRoute, Test.findAll);
 
@@ -76,13 +104,25 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: The test.
+   *         description: >
+   *           The test. An id that does not exist is not a 404 — it returns 200
+   *           with an empty body.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Test'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/test/:id", authenticateRoute, Test.findOne);
 
@@ -90,7 +130,11 @@ module.exports = (app) => {
    * @swagger
    * /test/{id}:
    *   put:
-   *     summary: Update a test by id (Admin only)
+   *     summary: Update a test by id
+   *     description: >
+   *       Any authenticated user may update a test. Partial update — send only
+   *       the fields you want to change. This is the route used to record a
+   *       test run by changing status and findings.
    *     tags: [Tests]
    *     parameters:
    *       - in: path
@@ -103,7 +147,7 @@ module.exports = (app) => {
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/TestInput'
+   *             $ref: '#/components/schemas/TestUpdateInput'
    *     responses:
    *       200:
    *         description: Test updated (or not found / empty body).
@@ -111,8 +155,18 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
-   *       403:
-   *         description: Admin privileges required.
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.put("/test/:id", authenticateRoute, Test.update);
 
@@ -120,7 +174,8 @@ module.exports = (app) => {
    * @swagger
    * /test/{id}:
    *   delete:
-   *     summary: Delete a test by id (Admin only)
+   *     summary: Delete a test by id
+   *     description: Any authenticated user may delete a test.
    *     tags: [Tests]
    *     parameters:
    *       - in: path
@@ -130,13 +185,23 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: Test deleted (or not found).
+   *         description: Test deleted (or not found — both cases return 200 with a message).
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
-   *       403:
-   *         description: Admin privileges required.
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/test/:id", authenticateRoute, Test.delete);
 
@@ -153,8 +218,24 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/test/", [authenticateRoute, isAdmin], Test.deleteAll);
 

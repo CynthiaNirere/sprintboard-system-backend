@@ -40,6 +40,16 @@ module.exports = (app) => {
    *               $ref: '#/components/schemas/Error'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/retros/", [authenticateRoute], Retro.create);
 
@@ -70,6 +80,16 @@ module.exports = (app) => {
    *                 $ref: '#/components/schemas/Retro'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/retros/", authenticateRoute, Retro.findAll);
 
@@ -88,13 +108,25 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: The retro.
+   *         description: >
+   *           The retro. An id that does not exist is not a 404 — it returns 200
+   *           with an empty body.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Retro'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/retros/:id", authenticateRoute, Retro.findOne);
 
@@ -122,8 +154,18 @@ module.exports = (app) => {
    *               $ref: '#/components/schemas/Retro'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       404:
    *         description: No retro exists yet for this sprint.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
    *         content:
    *           application/json:
    *             schema:
@@ -136,7 +178,10 @@ module.exports = (app) => {
    * /retros/{id}:
    *   put:
    *     summary: Update a retro by id
-   *     description: Callable by any authenticated user — this route is not admin-restricted.
+   *     description: >
+   *       Callable by any authenticated user — this route is not
+   *       admin-restricted. Partial update — send only the fields you want to
+   *       change.
    *     tags: [Retros]
    *     parameters:
    *       - in: path
@@ -149,7 +194,7 @@ module.exports = (app) => {
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/RetroInput'
+   *             $ref: '#/components/schemas/RetroUpdateInput'
    *     responses:
    *       200:
    *         description: Retro updated (or not found / empty body).
@@ -159,6 +204,16 @@ module.exports = (app) => {
    *               $ref: '#/components/schemas/Message'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.put("/retros/:id", [authenticateRoute], Retro.update);
 
@@ -176,13 +231,29 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: Retro deleted (or not found).
+   *         description: Retro deleted (or not found — both cases return 200 with a message).
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/retros/:id", [authenticateRoute, isAdmin], Retro.delete);
 
@@ -199,8 +270,24 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/retros/", [authenticateRoute, isAdmin], Retro.deleteAll);
 
