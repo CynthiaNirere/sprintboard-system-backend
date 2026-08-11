@@ -130,7 +130,7 @@ describe("sprint.createRecurring", () => {
       { name: "Sprint 1", startDate: "2026-08-01", endDate: "2026-08-14", isActive: true, projectId: 5 },
       { name: "Sprint 2", startDate: "2026-08-15", endDate: "2026-08-28", isActive: true, projectId: 5 },
       { name: "Sprint 3", startDate: "2026-08-29", endDate: "2026-09-11", isActive: true, projectId: 5 },
-    ]);
+    ], { individualHooks: true });
   });
 
   it("marks every generated sprint as active", async () => {
@@ -201,7 +201,7 @@ describe("sprint.createRecurring", () => {
     expect(res.send).toHaveBeenCalledWith(fakeCreated);
   });
 
-  it("returns 500 when bulkCreate fails", async () => {
+  it("returns 400 when bulkCreate fails", async () => {
     const res = mockRes();
     db.sprint.bulkCreate.mockRejectedValue(new Error("db down"));
 
@@ -218,6 +218,6 @@ describe("sprint.createRecurring", () => {
       res
     );
 
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.status).toHaveBeenCalledWith(400);
   });
 });
