@@ -284,6 +284,7 @@ describe("BoardStatus Controller", () => {
         name: "Updated",
       };
 
+      BoardStatus.findByPk.mockResolvedValue({ id: 1, name: "Updated" });
       BoardStatus.update.mockResolvedValue([1]);
 
       await boardStatusController.update(req, res);
@@ -298,6 +299,7 @@ describe("BoardStatus Controller", () => {
     it("should return message when board status does not exist", async () => {
       req.params.id = 99;
 
+      BoardStatus.findByPk.mockResolvedValue({ id: 99, name: "Old Name" });
       BoardStatus.update.mockResolvedValue([0]);
 
       await boardStatusController.update(req, res);
@@ -308,6 +310,7 @@ describe("BoardStatus Controller", () => {
 
 
     it("should handle update errors", async () => {
+      BoardStatus.findByPk.mockResolvedValue({ id: 1, name: "Some Status" });
       BoardStatus.update.mockRejectedValue(
         new Error("error")
       );
