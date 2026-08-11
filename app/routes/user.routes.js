@@ -44,8 +44,22 @@ module.exports = (app) => {
    *               $ref: '#/components/schemas/Error'
    *       502:
    *         description: A githubToken was supplied but GitHub could not be reached to verify it.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       503:
    *         description: A githubToken was supplied but GitHub is rate limiting requests.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/users/", User.create);
 
@@ -53,8 +67,10 @@ module.exports = (app) => {
    * @swagger
    * /users:
    *   get:
-   *     summary: Retrieve all users (Admin only)
-   *     description: Supports an `id` query parameter (partial match).
+   *     summary: Retrieve all users
+   *     description: >
+   *       Callable by any authenticated user. Supports an `id` query parameter
+   *       (partial match).
    *     tags: [Users]
    *     parameters:
    *       - in: query
@@ -73,8 +89,16 @@ module.exports = (app) => {
    *                 $ref: '#/components/schemas/User'
    *       401:
    *         description: Not authenticated.
-   *       403:
-   *         description: Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/users/", [authenticateRoute], User.findAll);
 
@@ -84,8 +108,8 @@ module.exports = (app) => {
    *   get:
    *     summary: Retrieve a single user by id
    *     description: >
-   *       Callable by the user themselves or an Admin. Includes the user's
-   *       projects, with each project's sprints nested.
+   *       Callable by any authenticated user, for any user id. Includes the
+   *       user's projects, with each project's sprints nested.
    *     tags: [Users]
    *     parameters:
    *       - in: path
@@ -100,10 +124,20 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/User'
-   *       403:
-   *         description: Access denied. Admins or account owners only.
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       404:
    *         description: User not found.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
    *         content:
    *           application/json:
    *             schema:
@@ -141,17 +175,44 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/Message'
    *       400:
-   *         description: The supplied githubToken was malformed or rejected by GitHub.
+   *         description: >
+   *           The supplied githubToken was malformed or rejected by GitHub; the
+   *           supplied githubAccount is not a valid GitHub account name; or the
+   *           request would demote the last remaining Admin to USER.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       401:
+   *         description: Not authenticated.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Access denied. Admins or account owners only.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       502:
    *         description: A githubToken was supplied but GitHub could not be reached to verify it.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       503:
    *         description: A githubToken was supplied but GitHub is rate limiting requests.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.put("/users/:id", [authenticateRoute, selfOrAdmin], User.update);
 
@@ -169,13 +230,29 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: User deleted (or not found).
+   *         description: User deleted (or not found — both cases return 200 with a message).
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/users/:id", [authenticateRoute, isAdmin], User.delete);
 
@@ -192,8 +269,24 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/users/", [authenticateRoute, isAdmin], User.deleteAll);
 
@@ -221,10 +314,30 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/GithubTokenStatus'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Access denied. Admins or account owners only.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       404:
    *         description: User not found.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/users/:id/github-token", [authenticateRoute, selfOrAdmin], User.getGithubTokenStatus);
 

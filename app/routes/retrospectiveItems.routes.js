@@ -40,6 +40,16 @@ module.exports = (app) => {
    *               $ref: '#/components/schemas/Error'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/retroItems/", [authenticateRoute], RetroItem.create);
 
@@ -49,16 +59,11 @@ module.exports = (app) => {
    *   get:
    *     summary: Retrieve all retro items
    *     description: >
-   *       Supports a `title` query parameter (note: retro items don't
-   *       actually have a title field, so this filter currently has no
-   *       effect — likely leftover from a copy-pasted controller template).
-   *       Each item includes the authoring user's id/email.
+   *       Each item includes the authoring user's id/email. Note that the
+   *       controller accepts a `title` query parameter left over from a
+   *       copy-pasted template — retro items have no title column, so supplying
+   *       it produces a SQL error and a 500. Omit it.
    *     tags: [RetroItems]
-   *     parameters:
-   *       - in: query
-   *         name: title
-   *         schema:
-   *           type: string
    *     responses:
    *       200:
    *         description: Array of retro items.
@@ -70,6 +75,16 @@ module.exports = (app) => {
    *                 $ref: '#/components/schemas/RetroItem'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error, including any request that supplies the `title` query parameter.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/retroItems/", authenticateRoute, RetroItem.findAll);
 
@@ -88,13 +103,25 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: The retro item.
+   *         description: >
+   *           The retro item. An id that does not exist is not a 404 — it
+   *           returns 200 with an empty body.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/RetroItem'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/retroItems/:id", authenticateRoute, RetroItem.findOne);
 
@@ -103,14 +130,7 @@ module.exports = (app) => {
    * /retroItems/retro/{retroId}:
    *   get:
    *     summary: Retrieve all items belonging to a given retro
-   *     description: >
-   *       NOTE: RetroItemServices.js's findSprintRetroItem() currently calls
-   *       "retroItems/sprint/{sprintId}", which does not match this route
-   *       (path segment "sprint" vs "retro", and this endpoint filters by
-   *       retroId, not sprintId). Nothing appears to call
-   *       findSprintRetroItem() yet, so this hasn't surfaced as a live bug,
-   *       but it will 404 the moment something does. Worth fixing the
-   *       frontend service to call this path before it's wired up.
+   *     description: Filters by retroId. Each item includes the authoring user's id/email.
    *     tags: [RetroItems]
    *     parameters:
    *       - in: path
@@ -120,7 +140,9 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: Array of items for this retro.
+   *         description: >
+   *           Array of items for this retro. Empty if the retro has none, or
+   *           does not exist.
    *         content:
    *           application/json:
    *             schema:
@@ -129,6 +151,16 @@ module.exports = (app) => {
    *                 $ref: '#/components/schemas/RetroItem'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/retroItems/retro/:retroId", authenticateRoute, RetroItem.findRetroItem);
 
@@ -137,7 +169,10 @@ module.exports = (app) => {
    * /retroItems/{id}:
    *   put:
    *     summary: Update a retro item by id
-   *     description: Callable by any authenticated user — this route is not admin-restricted.
+   *     description: >
+   *       Callable by any authenticated user — this route is not
+   *       admin-restricted. Partial update — send only the fields you want to
+   *       change.
    *     tags: [RetroItems]
    *     parameters:
    *       - in: path
@@ -150,7 +185,7 @@ module.exports = (app) => {
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/RetroItemInput'
+   *             $ref: '#/components/schemas/RetroItemUpdateInput'
    *     responses:
    *       200:
    *         description: RetroItem updated (or not found / empty body).
@@ -160,6 +195,16 @@ module.exports = (app) => {
    *               $ref: '#/components/schemas/Message'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.put("/retroItems/:id", [authenticateRoute], RetroItem.update);
 
@@ -178,13 +223,23 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: RetroItem deleted (or not found).
+   *         description: RetroItem deleted (or not found — both cases return 200 with a message).
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/retroItems/:id", [authenticateRoute], RetroItem.delete);
 
@@ -201,8 +256,24 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/retroItems/", [authenticateRoute, isAdmin], RetroItem.deleteAll);
 
