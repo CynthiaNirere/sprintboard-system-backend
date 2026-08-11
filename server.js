@@ -80,6 +80,7 @@ require("./app/routes/testHistory.routes.js")(app);
 require("./app/routes/githubRepositories.routes.js")(app);
 require("./app/routes/githubWebhook.routes.js")(app);
 require("./app/routes/comment.routes.js")(app);
+require("./app/routes/ticketHistory.routes.js")(app);
 
 
 // set port, listen for requests

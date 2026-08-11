@@ -218,7 +218,7 @@ db.ticketHistory.belongsTo(db.user, {
   as: "user",
   foreignKey: {
     name: "userId",
-    allowNull: false,
+    allowNull: true,
   },
 });
 db.ticket.hasMany(db.ticketHistory, {

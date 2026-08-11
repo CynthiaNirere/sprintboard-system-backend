@@ -9,14 +9,18 @@ module.exports = (app) => {
    * @swagger
    * tags:
    *   name: Repos
-   *   description: Acceptance-criteria repos attached to a ticket
+   *   description: GitHub repositories linked to a project
    */
 
   /**
    * @swagger
    * /repo:
    *   post:
-   *     summary: Create a new repo (acceptance criterion) on a ticket 
+   *     summary: Link a GitHub repository to a project
+   *     description: >
+   *       owner and repoSlug are derived from the url automatically. The
+   *       webhookSecret, if sent, is stored encrypted and never returned — not
+   *       even on this response.
    *     tags: [Repos]
    *     requestBody:
    *       required: true
@@ -32,13 +36,23 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/Repo'
    *       400:
-   *         description: Missing title, description, or ticketId.
+   *         description: Missing url, name, projectId, or developmentBranch; or webhookSecret was sent empty.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
-   *       403:
-   *         description: Login required.
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/repo/", authenticateRoute, Repo.create);
 
@@ -59,18 +73,37 @@ module.exports = (app) => {
    *                 $ref: '#/components/schemas/Repo'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/repo/", authenticateRoute, Repo.findAll);
 
   /**
    * @swagger
-   * /repo:
+   * /repo/project/{projectId}:
    *   get:
-   *     summary: Retrieve all repos for a project
+   *     summary: Retrieve all repos linked to a project
    *     tags: [Repos]
+   *     parameters:
+   *       - in: path
+   *         name: projectId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: The project whose repositories to return.
    *     responses:
    *       200:
-   *         description: Array of repos.
+   *         description: >
+   *           Array of repos for the project. Empty if the project has none, or
+   *           does not exist.
    *         content:
    *           application/json:
    *             schema:
@@ -79,6 +112,16 @@ module.exports = (app) => {
    *                 $ref: '#/components/schemas/Repo'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/repo/project/:projectId", authenticateRoute, Repo.findAllForProject);
 
@@ -96,13 +139,25 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: The repo.
+   *         description: >
+   *           The repo. An id that does not exist is not a 404 — it returns 200
+   *           with an empty body.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Repo'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/repo/:id", authenticateRoute, Repo.findOne);
 
@@ -123,7 +178,7 @@ module.exports = (app) => {
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/RepoInput'
+   *             $ref: '#/components/schemas/RepoUpdateInput'
    *     responses:
    *       200:
    *         description: Repo updated (or not found / empty body).
@@ -131,8 +186,24 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
-   *       403:
-   *         description: Login required.
+   *       400:
+   *         description: webhookSecret was sent empty. Send null to clear it, or omit it to leave it untouched.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.put("/repo/:id", authenticateRoute, Repo.update);
 
@@ -150,13 +221,23 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: Repo deleted (or not found).
+   *         description: Repo deleted (or not found — both cases return 200 with a message).
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
-   *       403:
-   *         description: Login required.
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/repo/:id", authenticateRoute, Repo.delete);
 
@@ -164,7 +245,8 @@ module.exports = (app) => {
    * @swagger
    * /repo:
    *   delete:
-   *     summary: Delete all repos 
+   *     summary: Delete all repos
+   *     description: Unlinks every repository from every project. Any authenticated user may call this.
    *     tags: [Repos]
    *     responses:
    *       200:
@@ -173,8 +255,18 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
-   *       403:
-   *         description: Login required.
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/repo/", authenticateRoute, Repo.deleteAll);
 

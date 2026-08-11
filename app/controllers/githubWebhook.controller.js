@@ -1,6 +1,8 @@
 const crypto = require("crypto");
 const db = require("../models");
 const { decrypt } = require("../authentication/crypto");
+const { logTicketChanged} = require("../services/ticketHistoryService");
+
 const {
   AutomationEvents,
   findStatusWithEvent,
@@ -166,9 +168,9 @@ exports.handle = async (req, res) => {
     const updateData = { statusId: status.id };
     if (pull.html_url) updateData.githubPrURL = pull.html_url;
     if (ticket.repoId == null) updateData.repoId = repo.id;
-
+    const before = Ticket.findByPk(ticket.id);
     await Ticket.update(updateData, { where: { id: ticket.id } });
-
+    const after = Ticket.findByPk(ticket.id);
     // Log the action to the user activity log. userId is nullable, which is
     // what lets a system-driven event be recorded with no acting user.
     try {
@@ -179,6 +181,7 @@ exports.handle = async (req, res) => {
         ipAddress: req.ip,
         userAgent: req.headers?.["user-agent"],
       });
+      await logTicketChanged(before, after, null);
     } catch (error) {
       console.log(`Error writing ${LOG_ACTIONS[event]} action to User Activity Log: `, error);
     }

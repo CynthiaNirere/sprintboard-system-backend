@@ -5,6 +5,7 @@ const Op = db.Sequelize.Op;
 const UserActivityLog = db.userActivityLog;
 const { LogActions } = require("../config/userActivityLogActions");
 const githubAutomation = require("../services/githubAutomation.service");
+const {logTicketCreated, logTicketChanged} = require("../services/ticketHistoryService");
 
 // Create and Save a Ticket
 exports.create = async (req, res) => {
@@ -45,6 +46,7 @@ exports.create = async (req, res) => {
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
       });
+      await logTicketCreated(data.id, requestedById);
     } catch (error) {
       console.log("Error writing TICKET_CREATED action to User Activity Log: ", error);
     }
@@ -146,8 +148,9 @@ exports.update = async (req, res) => {
     // Capture the status before the write — afterwards there is no way to tell
     // whether this update actually moved the ticket to a different column.
     let previousStatusId = null;
+    let before = null;
     try {
-      const before = await Ticket.findByPk(id);
+      before = await Ticket.findByPk(id);
       previousStatusId = before ? before.statusId : null;
     } catch (error) {
       console.log("Could not read ticket before update: ", error);
@@ -168,6 +171,7 @@ exports.update = async (req, res) => {
           ipAddress: req.ip,
           userAgent: req.headers['user-agent']
         });
+        await logTicketChanged(before, ticket, requestedById);
       } catch (error) {
         console.log("Error writing TICKET_UPDATED action to User Activity Log: ", error);
       }
@@ -181,7 +185,6 @@ exports.update = async (req, res) => {
         req.body.statusId !== undefined &&
         previousStatusId !== null &&
         String(req.body.statusId) !== String(previousStatusId);
-      console.log(statusChanged, "\n");
       if (statusChanged) {
         try {
 
@@ -191,7 +194,6 @@ exports.update = async (req, res) => {
             actingUserId: requestedById,
             req: req,
           });
-          console.log(result, "\n");
           if (result && result.ran) github = result;
         } catch (error) {
           console.log("Error running GitHub status automation: ", error);
@@ -329,6 +331,13 @@ exports.assignToSprint = async (req, res) => {
     }
 
     const num = await Ticket.update({ sprintId: sprintId, statusId: newBoardStatusId }, { where: { id: id } });
+    const after = await Ticket.findByPk(id);
+    try{
+
+      await logTicketChanged(ticket, after, req.userId);
+    }catch(error){
+
+    }
     if (num == 1) res.send({ message: "Ticket moved to sprint." });
     else res.send({ message: `Cannot move Ticket with id=${id}.` });
   } catch (err) {
@@ -340,7 +349,10 @@ exports.assignToSprint = async (req, res) => {
 exports.removeFromSprint = async (req, res) => {
   const id = req.params.id;
   try {
+    const before = await Ticket.findByPk(id);
     const num = await Ticket.update({ sprintId: null }, { where: { id: id } });
+    const after = await Ticket.findByPk(id);
+    await logTicketChanged(before, after, req.userId);
     if (num == 1) res.send({ message: "Ticket returned to backlog." });
     else res.send({ message: `Cannot update Ticket with id=${id}.` });
   } catch (err) {

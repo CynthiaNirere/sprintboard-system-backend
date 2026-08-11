@@ -8,6 +8,8 @@ const db = require("../models");
 const { decrypt } = require("../authentication/crypto");
 const github = require("./github.service");
 const { parseRepoUrl } = require("./githubUrl");
+const { logTicketChanged} = require("../services/ticketHistoryService");
+
 const {
   buildBranchName,
   normaliseBranchName,
@@ -216,11 +218,18 @@ const runCreateBranch = async ({ ticket, ticketId, actingUserId, req }) => {
     branch: branch,
     sha: sha,
   });
-
+  const before = await Ticket.findByPk(ticketId);
   await Ticket.update(
     { githubBranchName: branch, repoId: repo.id, githubBranchCreatedAt: new Date() },
     { where: { id: ticketId } }
   );
+  const after = await Ticket.findByPk(ticketId);
+  try{
+
+    await logTicketChanged(before, after, actingUserId);
+  }catch(error){
+
+  }
 
   await writeLog({
     actingUserId,
@@ -306,8 +315,15 @@ const runCreatePullRequest = async ({ ticket, ticketId, actingUserId, req }) => 
 
   const updateData = { githubPrURL: pull.url };
   if (ticket.repoId == null) updateData.repoId = repo.id;
+  const before = await Ticket.findByPk(ticketId);
   await Ticket.update(updateData, { where: { id: ticketId } });
+  const after = await Ticket.findByPk(ticketId);
+  try{
 
+    await logTicketChanged(before, after, actingUserId);
+  }catch(error){
+
+  }
   await writeLog({
     actingUserId,
     req,
