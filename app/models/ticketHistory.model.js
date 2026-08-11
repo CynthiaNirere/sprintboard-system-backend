@@ -1,4 +1,4 @@
-    module.exports = (sequelize, Sequelize, DataTypes) => {
+module.exports = (sequelize, Sequelize, DataTypes) => {
   const TicketHistory = sequelize.define("ticket_history", {
     message: {
       type: DataTypes.TEXT,
