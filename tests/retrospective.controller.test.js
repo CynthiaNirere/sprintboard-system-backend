@@ -13,7 +13,9 @@ jest.mock("../app/models", () => ({
     destroy: jest.fn(),
   },
   user: {},
-  sprint: {},
+  sprint: {
+    findByPk: jest.fn(),
+  },
   retroItem: {},
   Sequelize: {
     Op: {
@@ -98,6 +100,7 @@ describe("Retro Controller", () => {
 
       req.body = requestBody;
 
+      db.sprint.findByPk.mockResolvedValue({ id: 1 });
       Retro.create.mockResolvedValue(createdRetro);
 
       await retroController.create(req, res);
@@ -121,6 +124,7 @@ describe("Retro Controller", () => {
 
       req.body = requestBody;
 
+      db.sprint.findByPk.mockResolvedValue({ id: 1 });
       Retro.create.mockResolvedValue(requestBody);
 
       await retroController.create(req, res);
@@ -143,6 +147,8 @@ describe("Retro Controller", () => {
         status: "active",
         sprintId: 1,
       };
+
+      db.sprint.findByPk.mockResolvedValue({ id: 1 });
 
       await retroController.create(req, res);
 

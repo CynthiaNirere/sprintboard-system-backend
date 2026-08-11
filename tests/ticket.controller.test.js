@@ -72,6 +72,7 @@ describe("Ticket Controller", () => {
         projectId: 1,
         sprintId: 3,
         statusId: 1,
+        repoId: null,
       };
 
       const createdTicket = {
@@ -113,6 +114,7 @@ describe("Ticket Controller", () => {
         projectId: null,
         sprintId: null,
         statusId: 1,
+        repoId: null,
       };
 
       req.body = requestBody;

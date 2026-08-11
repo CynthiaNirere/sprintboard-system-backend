@@ -12,6 +12,16 @@ jest.mock("../app/models", () => ({
     destroy: jest.fn(),
   },
   user: {},
+  // The controller looks up the parent retro, then that retro's sprint,
+  // to build the activity-log message ("added a ... item to the sprint
+  // <name> retro"). Both need to resolve to something with the field the
+  // controller reads next (retro.sprintId, then sprint.name).
+  retrospective: {
+    findByPk: jest.fn(),
+  },
+  sprint: {
+    findByPk: jest.fn(),
+  },
   Sequelize: {
     Op: {
       like: Symbol("like"),
@@ -110,6 +120,8 @@ describe("RetroItem Controller", () => {
 
     req.body = requestBody;
 
+    db.retrospective.findByPk.mockResolvedValue({ id: 1, sprintId: 1 });
+    db.sprint.findByPk.mockResolvedValue({ id: 1, name: "Seeded Sprint 1" });
     RetroItem.create.mockResolvedValue(createdItem);
 
     await retroItemController.create(req, res);
@@ -130,6 +142,8 @@ describe("RetroItem Controller", () => {
         userId: 1,
         retroId: 1,
       };
+
+      db.retrospective.findByPk.mockResolvedValue({ id: 1 });
 
       await retroItemController.create(req, res);
 
