@@ -21,7 +21,7 @@ describe("isProjectAdmin middleware", () => {
   beforeEach(() => {
     req = {
       userId: 1,
-      params: { id: "5" },
+      params: { projectId: "5" },
     };
 
     res = {
