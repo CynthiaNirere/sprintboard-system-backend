@@ -1,3 +1,4 @@
+//modified this model
 module.exports = (sequelize, Sequelize, DataTypes) => {
   const TicketHistory = sequelize.define("ticket_history", {
     message: {
