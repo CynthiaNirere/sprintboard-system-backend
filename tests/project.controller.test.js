@@ -73,13 +73,8 @@ describe("Project Controller", () => {
     });
 
 
-    // NOTE: this asserts that create() now also auto-creates a default
-    // "No Status" board status for the new project — that's new behavior
-    // that showed up in the version of this test merged from dev. I haven't
-    // seen the updated project.controller.js myself, so please confirm
-    // create() actually does this before trusting this assertion — if it
-    // doesn't, this test will fail (db.boardStatus.create never called) and
-    // that's a real signal, not a test bug.
+    // Confirmed against the real controller: create() does auto-create a
+    // default "No Status" board status for the new project.
     it("should create a project and its default board status", async () => {
       const requestBody = {
         name: "Website Project",
@@ -339,7 +334,7 @@ describe("Project Controller", () => {
   describe("addProjectMember", () => {
 
     it("should return 400 when userId is missing", async () => {
-      req.params.id = 1;
+      req.params.projectId = 1;
       req.body = { projectRole: "DEVELOPER" };
 
       await projectController.addProjectMember(req, res);
@@ -349,7 +344,7 @@ describe("Project Controller", () => {
 
 
     it("should return 400 when projectRole is missing", async () => {
-      req.params.id = 1;
+      req.params.projectId = 1;
       req.body = { userId: 7 };
 
       await projectController.addProjectMember(req, res);
@@ -359,7 +354,7 @@ describe("Project Controller", () => {
 
 
     it("should return 400 when the user is already a member of this project", async () => {
-      req.params.id = 1;
+      req.params.projectId = 1;
       req.body = { userId: 7, projectRole: "DEVELOPER" };
 
       ProjectMember.findOne.mockResolvedValue({ projectId: 1, userId: 7, projectRole: "DEVELOPER" });
@@ -375,11 +370,13 @@ describe("Project Controller", () => {
 
 
     it("should create the member and return 201 when not already a member", async () => {
-      req.params.id = 1;
+      req.params.projectId = 1;
       req.body = { userId: 7, projectRole: "DEVELOPER" };
 
       ProjectMember.findOne.mockResolvedValue(null);
       ProjectMember.create.mockResolvedValue({ projectId: 1, userId: 7, projectRole: "DEVELOPER" });
+      Project.findByPk.mockResolvedValue({ id: 1, name: "Website Project" });
+      User.findByPk.mockResolvedValue({ id: 7, firstName: "Sofia", lastName: "Chen" });
 
       await projectController.addProjectMember(req, res);
 
@@ -393,7 +390,7 @@ describe("Project Controller", () => {
 
 
     it("should return 500 when create fails", async () => {
-      req.params.id = 1;
+      req.params.projectId = 1;
       req.body = { userId: 7, projectRole: "DEVELOPER" };
 
       ProjectMember.findOne.mockResolvedValue(null);
@@ -492,14 +489,14 @@ describe("Project Controller", () => {
     });
 
 
-    // FLAGGED: the controller only blocks a non-admin when the target's
-    // CURRENT projectRole is already PROJECT_ADMIN. It does not check whether
-    // the NEW projectRole being requested is PROJECT_ADMIN. So a non-admin
+    // FLAGGED — confirmed against the real controller, not just the test:
+    // the authorization check only inspects the target's CURRENT
+    // projectRole ("if (userToUpdate.projectRole === 'PROJECT_ADMIN')").
+    // It never inspects the NEW projectRole being requested. So a non-admin
     // Project Admin can currently promote a Developer straight to
-    // PROJECT_ADMIN — this test documents that this is what the code
-    // actually does today, not necessarily what your team intends given the
-    // "only Admins grant Project Admin" rule discussed elsewhere. Worth a
-    // team decision on whether this needs a code change.
+    // PROJECT_ADMIN. This test documents real, current behavior — worth a
+    // team decision on whether the controller should also block promotions
+    // TO PROJECT_ADMIN by non-admins, not just edits of existing ones.
     it("[gap] currently allows a non-admin to promote a Developer to PROJECT_ADMIN", async () => {
       req.userId = 3;
       req.params.id = 1;

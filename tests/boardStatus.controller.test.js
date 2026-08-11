@@ -2,18 +2,25 @@ const boardStatusController = require("../app/controllers/boardStatus.controller
 const db = require("../app/models");
 
 const BoardStatus = db.boardStatus;
+const Ticket = db.ticket;
 
 jest.mock("../app/models", () => ({
   boardStatus: {
     create: jest.fn(),
     findAll: jest.fn(),
     findByPk: jest.fn(),
+    findOne: jest.fn(),
     update: jest.fn(),
     destroy: jest.fn(),
+  },
+  ticket: {
+    update: jest.fn(),
   },
   Sequelize: {
     Op: {
       like: Symbol("like"),
+      lt: Symbol("lt"),
+      ne: Symbol("ne"),
     },
   },
 }));
@@ -99,6 +106,7 @@ describe("BoardStatus Controller", () => {
         name: "In Progress",
         columnOrder: 2,
         projectId: 1,
+        githubEvent: "none",
       };
 
       const createdStatus = {
@@ -129,6 +137,7 @@ describe("BoardStatus Controller", () => {
         name: "Todo",
         columnOrder: 1,
         projectId: 1,
+        githubEvent: "none",
       };
 
       await boardStatusController.create(req, res);
@@ -275,6 +284,7 @@ describe("BoardStatus Controller", () => {
         name: "Updated",
       };
 
+      BoardStatus.findByPk.mockResolvedValue({ id: 1, name: "Updated" });
       BoardStatus.update.mockResolvedValue([1]);
 
       await boardStatusController.update(req, res);
@@ -289,6 +299,7 @@ describe("BoardStatus Controller", () => {
     it("should return message when board status does not exist", async () => {
       req.params.id = 99;
 
+      BoardStatus.findByPk.mockResolvedValue({ id: 99, name: "Old Name" });
       BoardStatus.update.mockResolvedValue([0]);
 
       await boardStatusController.update(req, res);
@@ -299,6 +310,7 @@ describe("BoardStatus Controller", () => {
 
 
     it("should handle update errors", async () => {
+      BoardStatus.findByPk.mockResolvedValue({ id: 1, name: "Some Status" });
       BoardStatus.update.mockRejectedValue(
         new Error("error")
       );
@@ -317,7 +329,15 @@ describe("BoardStatus Controller", () => {
 
     it("should delete a board status", async () => {
       req.params.id = 1;
+      req.params.projectId = 1;
 
+      // The controller now looks the status up first (to find its
+      // columnOrder), then checks for a fallback column before touching
+      // any tickets — all of this has to resolve before it ever reaches
+      // BoardStatus.destroy.
+      BoardStatus.findByPk.mockResolvedValue({ id: 1, columnOrder: 2 });
+      BoardStatus.findOne.mockResolvedValue(null);
+      Ticket.update.mockResolvedValue([0]);
       BoardStatus.destroy.mockResolvedValue(1);
 
       await boardStatusController.delete(req, res);

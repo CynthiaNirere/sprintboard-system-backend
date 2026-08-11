@@ -1,4 +1,4 @@
-module.exports = (sequelize, Sequelize, DataTypes) => {
+    module.exports = (sequelize, Sequelize, DataTypes) => {
   const TicketHistory = sequelize.define("ticket_history", {
     field: {
       type: DataTypes.STRING(64),
@@ -35,6 +35,5 @@ module.exports = (sequelize, Sequelize, DataTypes) => {
       }
     ]
   });
-
   return TicketHistory;
 };
