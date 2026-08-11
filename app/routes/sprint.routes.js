@@ -15,10 +15,21 @@ module.exports = (app) => {
 
   /**
    * @swagger
-   * /sprints:
+   * /project/{projectId}/sprints:
    *   post:
-   *     summary: Create a new sprint (Admin only)
+   *     summary: Create a new sprint (Admins and Project Admins)
+   *     description: >
+   *       The projectId in the path is used only for authorization. The sprint
+   *       itself is created against the projectId in the request body, and the
+   *       two are never cross-checked.
    *     tags: [Sprints]
+   *     parameters:
+   *       - in: path
+   *         name: projectId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: The project whose Project Admins may call this.
    *     requestBody:
    *       required: true
    *       content:
@@ -33,22 +44,53 @@ module.exports = (app) => {
    *             schema:
    *               $ref: '#/components/schemas/Sprint'
    *       400:
-   *         description: Missing name, startDate, endDate, or projectId.
+   *         description: >
+   *           The new sprint's dates overlap an existing sprint on the same
+   *           project. Note that a missing name, startDate, endDate or projectId
+   *           is not reported here — the validation for those throws instead of
+   *           responding, so the request never completes.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       401:
+   *         description: Not authenticated.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
    *       403:
-   *         description: Admin privileges required.
+   *         description: Access denied. Admins or Project Admins only.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/project/:projectId/sprints/", [authenticateRoute, isProjectAdmin], Sprint.create);
 
   /**
    * @swagger
-   * /sprints/recurring:
+   * /project/{projectId}/sprints/recurring:
    *   post:
-   *     summary: Generate a series of recurring sprints (Admin only)
+   *     summary: Generate a series of recurring sprints (Admins and Project Admins)
+   *     description: >
+   *       The projectId in the path is used only for authorization. The sprints
+   *       are created against the projectId in the request body, and the two are
+   *       never cross-checked.
    *     tags: [Sprints]
+   *     parameters:
+   *       - in: path
+   *         name: projectId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: The project whose Project Admins may call this.
    *     requestBody:
    *       required: true
    *       content:
@@ -65,13 +107,31 @@ module.exports = (app) => {
    *               items:
    *                 $ref: '#/components/schemas/Sprint'
    *       400:
-   *         description: Missing name, startDate, lengthDays, count, or projectId.
+   *         description: >
+   *           Missing name, startDate, lengthDays, count, or projectId; or one of
+   *           the generated sprints overlaps an existing sprint on the same project.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       401:
+   *         description: Not authenticated.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
    *       403:
-   *         description: Admin privileges required.
+   *         description: Access denied. Admins or Project Admins only.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/project/:projectId/sprints/recurring", [authenticateRoute, isProjectAdmin], Sprint.createRecurring);
 
@@ -98,6 +158,16 @@ module.exports = (app) => {
    *                 $ref: '#/components/schemas/Sprint'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/sprints/", authenticateRoute, Sprint.findAll);
 
@@ -115,67 +185,137 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: The sprint.
+   *         description: >
+   *           The sprint. An id that does not exist is not a 404 — it returns
+   *           200 with an empty body.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Sprint'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/sprints/:id", authenticateRoute, Sprint.findOne);
 
   /**
    * @swagger
-   * /sprints/{id}:
+   * /project/{projectId}/sprints/{id}:
    *   put:
-   *     summary: Update a sprint by id (Admin only)
+   *     summary: Update a sprint by id (Admins and Project Admins)
+   *     description: >
+   *       Partial update — send only the fields you want to change. The
+   *       projectId in the path is used only for authorization; it does not have
+   *       to match the sprint's own project.
    *     tags: [Sprints]
    *     parameters:
+   *       - in: path
+   *         name: projectId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: The project whose Project Admins may call this.
    *       - in: path
    *         name: id
    *         required: true
    *         schema:
    *           type: integer
+   *         description: The sprint to update.
    *     requestBody:
    *       required: true
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/SprintInput'
+   *             $ref: '#/components/schemas/SprintUpdateInput'
    *     responses:
    *       200:
-   *         description: Sprint updated (or not found / empty body).
+   *         description: >
+   *           Sprint updated. This message is sent whether or not any row
+   *           matched, so it does not confirm that the sprint exists.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       400:
+   *         description: The new dates overlap an existing sprint on the same project.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
-   *         description: Admin privileges required.
+   *         description: Access denied. Admins or Project Admins only.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.put("/project/:projectId/sprints/:id", [authenticateRoute, isProjectAdmin], Sprint.update);
 
   /**
    * @swagger
-   * /sprints/{id}:
+   * /project/{projectId}/sprints/{id}:
    *   delete:
-   *     summary: Delete a sprint by id (Admin only)
+   *     summary: Delete a sprint by id (Admins and Project Admins)
    *     tags: [Sprints]
    *     parameters:
+   *       - in: path
+   *         name: projectId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: The project whose Project Admins may call this.
    *       - in: path
    *         name: id
    *         required: true
    *         schema:
    *           type: integer
+   *         description: The sprint to delete.
    *     responses:
    *       200:
-   *         description: Sprint deleted (or not found).
+   *         description: Sprint deleted (or not found — both cases return 200 with a message).
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
-   *         description: Admin privileges required.
+   *         description: Access denied. Admins or Project Admins only.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/project/:projectId/sprints/:id", [authenticateRoute, isProjectAdmin], Sprint.delete);
 
@@ -192,8 +332,24 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/sprints/", [authenticateRoute, isAdmin], Sprint.deleteAll);
 

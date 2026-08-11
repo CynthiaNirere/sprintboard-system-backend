@@ -39,8 +39,24 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/projects/", [authenticateRoute, isAdmin], Project.create);
 
@@ -70,6 +86,16 @@ module.exports = (app) => {
    *                 $ref: '#/components/schemas/Project'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/projects/", authenticateRoute, Project.findAll);
 
@@ -78,7 +104,9 @@ module.exports = (app) => {
    * /projects/{id}:
    *   get:
    *     summary: Retrieve a project by id
-   *     description: Includes board statuses, repositories (id/name only), and sprints.
+   *     description: >
+   *       Includes board statuses, repositories (id/name only), and sprints
+   *       (id/name/isActive only — no dates, unlike GET /projects).
    *     tags: [Projects]
    *     parameters:
    *       - in: path
@@ -88,13 +116,25 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: The project.
+   *         description: >
+   *           The project. An id that does not exist is not a 404 — it returns
+   *           200 with an empty body.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Project'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/projects/:id", authenticateRoute, Project.findOne);
 
@@ -104,9 +144,9 @@ module.exports = (app) => {
    *   get:
    *     summary: Retrieve all projects a given user belongs to
    *     description: >
-   *       Same shape as GET /projects, filtered to projects where this user is
-   *       a member. Returns 404 if the query itself fails, not when the user
-   *       simply has zero projects (that case returns 200 with an empty array).
+   *       Same shape as GET /projects, filtered to projects where this user is a
+   *       member, plus a `users` array carrying that user's projectRole. A user
+   *       with zero projects gets 200 and an empty array, not a 404.
    *     tags: [Projects]
    *     parameters:
    *       - in: path
@@ -125,6 +165,22 @@ module.exports = (app) => {
    *                 $ref: '#/components/schemas/Project'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       404:
+   *         description: Projects not found.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.get("/projects/user/:userId", authenticateRoute, Project.findUserProjects);
 
@@ -133,7 +189,9 @@ module.exports = (app) => {
    * /projects/{id}/members:
    *   get:
    *     summary: Retrieve all members of a project
-   *     description: Returns each member's basic user info plus their projectRole from the project_members join table.
+   *     description: >
+   *       Returns each member's basic user info. Their projectRole arrives
+   *       nested under a `project_member` key, not as a top-level field.
    *     tags: [Projects]
    *     parameters:
    *       - in: path
@@ -152,8 +210,18 @@ module.exports = (app) => {
    *                 $ref: '#/components/schemas/ProjectMember'
    *       401:
    *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       404:
    *         description: Project not found.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
    *         content:
    *           application/json:
    *             schema:
@@ -163,16 +231,17 @@ module.exports = (app) => {
 
   /**
    * @swagger
-   * /projects/{id}/members:
+   * /projects/{projectId}/members:
    *   post:
    *     summary: Add a user to a project (Admin or Project Admin)
    *     tags: [Projects]
    *     parameters:
    *       - in: path
-   *         name: id
+   *         name: projectId
    *         required: true
    *         schema:
    *           type: integer
+   *         description: The project to add the member to.
    *     requestBody:
    *       required: true
    *       content:
@@ -182,36 +251,56 @@ module.exports = (app) => {
    *     responses:
    *       201:
    *         description: Project member created.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ProjectMemberRow'
    *       400:
    *         description: userId or projectRole missing from request body, or this user is already a member of the project.
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Admin or Project Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/projects/:projectId/members", [authenticateRoute, isProjectAdmin], Project.addProjectMember);
 
   /**
    * @swagger
-   * /projects/{id}/members:
+   * /projects/{projectId}/members:
    *   put:
    *     summary: Update a member's project role (Admin, or Project Admin updating a Developer)
    *     description: >
    *       A non-Admin cannot update their own role, and cannot update someone
-   *       who is currently PROJECT_ADMIN — both require a true Admin. NOTE:
+   *       who is currently PROJECT_ADMIN — both require a true Admin. Note that
    *       this checks the target's CURRENT role only, not the role being
-   *       requested — a non-Admin Project Admin can currently promote a
-   *       Developer straight to PROJECT_ADMIN. Confirm with your team whether
-   *       that's intentional.
+   *       requested, so a non-Admin Project Admin can promote a Developer
+   *       straight to PROJECT_ADMIN.
    *     tags: [Projects]
    *     parameters:
    *       - in: path
-   *         name: id
+   *         name: projectId
    *         required: true
    *         schema:
    *           type: integer
+   *         description: The project whose membership to change.
    *     requestBody:
    *       required: true
    *       content:
@@ -231,6 +320,12 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: A non-Admin tried to update their own role, or another Project Admin's role.
    *         content:
@@ -243,6 +338,12 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.put("/projects/:projectId/members", [authenticateRoute, isProjectAdmin], Project.updateProjectMember);
 
@@ -251,6 +352,7 @@ module.exports = (app) => {
    * /projects/{id}:
    *   put:
    *     summary: Update a project by id (Admin only)
+   *     description: Partial update — send only the fields you want to change.
    *     tags: [Projects]
    *     parameters:
    *       - in: path
@@ -263,7 +365,7 @@ module.exports = (app) => {
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/ProjectInput'
+   *             $ref: '#/components/schemas/ProjectUpdateInput'
    *     responses:
    *       200:
    *         description: Project updated (or not found / empty body).
@@ -271,8 +373,24 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.put("/projects/:id", [authenticateRoute, isAdmin], Project.update);
 
@@ -290,13 +408,29 @@ module.exports = (app) => {
    *           type: integer
    *     responses:
    *       200:
-   *         description: Project deleted (or not found).
+   *         description: Project deleted (or not found — both cases return 200 with a message).
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/projects/:id", [authenticateRoute, isAdmin], Project.delete);
 
@@ -313,14 +447,30 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: Admin privileges required.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.delete("/projects/", [authenticateRoute, isAdmin], Project.deleteAll);
 
   /**
    * @swagger
-   * /projects/{id}/members/{userId}:
+   * /projects/{projectId}/members/{userId}:
    *   delete:
    *     summary: Remove a user from a project (Admin, or Project Admin removing a Developer)
    *     description: >
@@ -330,15 +480,17 @@ module.exports = (app) => {
    *     tags: [Projects]
    *     parameters:
    *       - in: path
-   *         name: id
+   *         name: projectId
    *         required: true
    *         schema:
    *           type: integer
+   *         description: The project to remove the member from.
    *       - in: path
    *         name: userId
    *         required: true
    *         schema:
    *           type: integer
+   *         description: The member to remove.
    *     responses:
    *       200:
    *         description: Project member deleted.
@@ -346,6 +498,12 @@ module.exports = (app) => {
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Message'
+   *       401:
+   *         description: Not authenticated.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       403:
    *         description: A non-Admin tried to remove a Project Admin.
    *         content:
@@ -354,6 +512,12 @@ module.exports = (app) => {
    *               $ref: '#/components/schemas/Error'
    *       404:
    *         description: No matching project member found.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error.
    *         content:
    *           application/json:
    *             schema:

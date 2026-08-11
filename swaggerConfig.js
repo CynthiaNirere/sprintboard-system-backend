@@ -182,6 +182,25 @@ const options = {
             },
           },
         },
+        RepoUpdateInput: {
+          type: "object",
+          description:
+            "Any subset of Repo fields to change. PUT passes the body straight to Sequelize with no validation, so nothing is required. owner and repoSlug are re-derived from url and cannot be set directly.",
+          properties: {
+            url: { type: "string", example: "https://github.com/acme/widgets" },
+            name: { type: "string" },
+            projectId: { type: "integer" },
+            developmentBranch: { type: "string" },
+            webhookSecret: {
+              type: "string",
+              format: "password",
+              nullable: true,
+              writeOnly: true,
+              description:
+                "Send a new secret to replace the stored one, or null to clear it. Omit the field to leave it untouched. An empty string is rejected with 400.",
+            },
+          },
+        },
         GithubWebhookPayload: {
           type: "object",
           description: "The subset of GitHub's pull_request payload this endpoint reads.",
@@ -293,10 +312,17 @@ const options = {
             updatedAt: { type: "string", format: "date-time" },
             projectSprints: {
               type: "array",
-              description: "Included on GET /projects, GET /projects/{id}, GET /projects/user/{userId}, and GET /users/{id}.",
+              description:
+                "Included on GET /projects, GET /projects/{id}, GET /projects/user/{userId}, and GET /users/{id}. GET /projects/{id} returns only id/name/isActive; GET /users/{id} returns the full sprint record (see the Sprint schema).",
               items: {
                 type: "object",
-                properties: { id: { type: "integer" }, name: { type: "string" }, isActive: { type: "boolean" } },
+                properties: {
+                  id: { type: "integer" },
+                  name: { type: "string" },
+                  isActive: { type: "boolean" },
+                  startDate: { type: "string", format: "date" },
+                  endDate: { type: "string", format: "date" },
+                },
               },
             },
             projectTickets: {
@@ -324,6 +350,23 @@ const options = {
                 },
               },
             },
+            users: {
+              type: "array",
+              description:
+                "Only included on GET /projects/user/{userId}, where it contains just the user being queried. The membership role arrives nested under the project_member join-table key.",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "integer" },
+                  project_member: {
+                    type: "object",
+                    properties: {
+                      projectRole: { type: "string", enum: ["PROJECT_ADMIN", "DEVELOPER"] },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         ProjectInput: {
@@ -334,12 +377,41 @@ const options = {
 
         ProjectMember: {
           type: "object",
+          description:
+            "A user as returned by GET /projects/{id}/members. The membership role is NOT a top-level field — Sequelize nests the join-table columns under the `project_member` key.",
           properties: {
             id: { type: "integer", example: 3 },
             firstName: { type: "string", example: "Sofia" },
             lastName: { type: "string", example: "Chen" },
             globalRole: { type: "string", enum: ["ADMIN", "USER"] },
-            projectRole: { type: "string", enum: ["PROJECT_ADMIN", "DEVELOPER"], description: "Comes from the project_members join table, not the user record itself." },
+            project_member: {
+              type: "object",
+              description: "The project_members join-table row for this user on this project.",
+              properties: {
+                projectRole: { type: "string", enum: ["PROJECT_ADMIN", "DEVELOPER"] },
+              },
+            },
+          },
+        },
+        ProjectMemberRow: {
+          type: "object",
+          description: "The raw project_members join-table row, as returned by POST /projects/{projectId}/members.",
+          properties: {
+            id: { type: "integer", example: 12 },
+            projectId: { type: "integer" },
+            userId: { type: "integer" },
+            projectRole: { type: "string", enum: ["PROJECT_ADMIN", "DEVELOPER"] },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        ProjectUpdateInput: {
+          type: "object",
+          description:
+            "Any subset of Project fields to change. PUT /projects/{id} passes the body straight to Sequelize with no validation, so nothing is required.",
+          properties: {
+            name: { type: "string" },
+            description: { type: "string", nullable: true },
           },
         },
         ProjectMemberInput: {
@@ -404,8 +476,20 @@ const options = {
               type: "boolean",
               default: true,
               description:
-                "Defaults to true if omitted (note: this differs from the Sprint model's own column default of false — confirm this is intentional).",
+                "Defaults to true when omitted. The controller supplies this default explicitly; the Sprint model's own column default is false.",
             },
+          },
+        },
+        SprintUpdateInput: {
+          type: "object",
+          description:
+            "Any subset of Sprint fields to change. PUT passes the body straight to Sequelize with no validation, so nothing is required. Changing startDate/endDate still runs the overlapping-sprint check, which returns 400.",
+          properties: {
+            name: { type: "string" },
+            startDate: { type: "string", format: "date" },
+            endDate: { type: "string", format: "date" },
+            projectId: { type: "integer" },
+            isActive: { type: "boolean" },
           },
         },
         RecurringSprintInput: {
@@ -429,12 +513,40 @@ const options = {
             projectId: { type: "integer" },
             name: { type: "string", example: "In Progress" },
             columnOrder: { type: "integer", example: 1 },
+            githubEvent: {
+              type: "string",
+              example: "create_branch",
+              default: "none",
+              description:
+                "The GitHub automation that fires when a ticket is moved into this column. Use \"none\" for a column that triggers nothing.",
+            },
           },
         },
         BoardStatusInput: {
           type: "object",
-          required: ["name", "columnOrder", "projectId"],
-          properties: { name: { type: "string" }, columnOrder: { type: "integer" }, projectId: { type: "integer" } },
+          required: ["name", "columnOrder", "projectId", "githubEvent"],
+          properties: {
+            name: { type: "string" },
+            columnOrder: { type: "integer" },
+            projectId: { type: "integer" },
+            githubEvent: {
+              type: "string",
+              example: "none",
+              description:
+                "Required — the controller rejects a missing githubEvent with 400. Send \"none\" for a column with no GitHub automation.",
+            },
+          },
+        },
+        BoardStatusUpdateInput: {
+          type: "object",
+          description:
+            "Any subset of BoardStatus fields to change. PUT passes the body straight to Sequelize with no validation, so nothing is required here — unlike POST, which does require githubEvent.",
+          properties: {
+            name: { type: "string" },
+            columnOrder: { type: "integer" },
+            projectId: { type: "integer" },
+            githubEvent: { type: "string" },
+          },
         },
 
         Ticket: {
@@ -469,6 +581,12 @@ const options = {
               description: "Set by the GitHub webhook when a pull request for this ticket's branch opens.",
             },
             githubIssueNumber: { type: "integer", nullable: true },
+            repoId: {
+              type: "integer",
+              nullable: true,
+              description:
+                "The linked repository the GitHub automation acts on. Leave it null when the project has exactly one repository — the automation resolves it automatically and reports AMBIGUOUS_REPO if there is more than one.",
+            },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
             ticketTests: {
@@ -480,18 +598,19 @@ const options = {
         },
         TicketInput: {
           type: "object",
-          required: ["title", "type", "priority", "statusId"],
+          required: ["title", "type", "priority"],
           description:
-            "Only title is validated with a clean 400 error if missing. type, priority, and statusId are required by the database but currently raise a raw 500 error (not a clean 400) if omitted. Note: repoId exists on the Ticket model but is not currently accepted by this endpoint at all.",
+            "Only title is validated with a clean 400 error if missing. type and priority are NOT NULL in the database and raise a raw 500 (not a clean 400) if omitted. statusId is optional — it is nullable and defaults to null, leaving the ticket off the board until it is assigned a column.",
           properties: {
             title: { type: "string" },
             description: { type: "string", nullable: true },
             type: { type: "string", enum: ["FEATURE", "ENHANCEMENT", "BUG"] },
             priority: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
-            statusId: { type: "integer" },
+            statusId: { type: "integer", nullable: true },
             projectId: { type: "integer", nullable: true },
             sprintId: { type: "integer", nullable: true },
             assigneeId: { type: "integer", nullable: true },
+            repoId: { type: "integer", nullable: true, description: "The linked repository the GitHub automation acts on." },
             storyPoints: { type: "integer", nullable: true, enum: [0, 1, 2, 3, 5, 8, 13, 21, 34, 55] },
             githubBranchName: {
               type: "string",
@@ -515,6 +634,7 @@ const options = {
             projectId: { type: "integer" },
             sprintId: { type: "integer", nullable: true },
             assigneeId: { type: "integer", nullable: true },
+            repoId: { type: "integer", nullable: true, description: "The linked repository the GitHub automation acts on." },
             storyPoints: { type: "integer", nullable: true, enum: [0, 1, 2, 3, 5, 8, 13, 21, 34, 55] },
             githubBranchName: {
               type: "string",
@@ -536,6 +656,11 @@ const options = {
             title: { type: "string", example: "Seed script is idempotent" },
             description: { type: "string" },
             status: { type: "string", enum: ["PENDING", "FAILED", "PASSED"], default: "PENDING" },
+            findings: {
+              type: "string",
+              nullable: true,
+              description: "Free-text notes recorded when the test is run — typically what failed and why.",
+            },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
           },
@@ -550,7 +675,20 @@ const options = {
             description: { type: "string" },
             ticketId: { type: "integer" },
             status: { type: "string", enum: ["PENDING", "FAILED", "PASSED"], default: "PENDING" },
+            findings: { type: "string", nullable: true, description: "Free-text notes about the test run." },
             userId: { type: "integer", nullable: true, description: "Maps to the test's ownerId column." },
+          },
+        },
+        TestUpdateInput: {
+          type: "object",
+          description:
+            "Any subset of Test fields to change. PUT passes the body straight to Sequelize with no validation, so nothing is required — this is the route used to flip status and record findings.",
+          properties: {
+            title: { type: "string" },
+            description: { type: "string" },
+            ticketId: { type: "integer" },
+            status: { type: "string", enum: ["PENDING", "FAILED", "PASSED"] },
+            findings: { type: "string", nullable: true },
           },
         },
 
@@ -586,6 +724,17 @@ const options = {
             completionDate: { type: "string", format: "date-time", nullable: true },
           },
         },
+        RetroUpdateInput: {
+          type: "object",
+          description:
+            "Any subset of Retro fields to change. PUT passes the body straight to Sequelize with no validation, so nothing is required.",
+          properties: {
+            title: { type: "string" },
+            status: { type: "string", enum: ["SCHEDULED", "IN_PROGRESS", "COMPLETED"] },
+            sprintId: { type: "integer" },
+            completionDate: { type: "string", format: "date-time", nullable: true },
+          },
+        },
 
         RetroItem: {
           type: "object",
@@ -614,6 +763,17 @@ const options = {
             retroId: { type: "integer" },
           },
         },
+        RetroItemUpdateInput: {
+          type: "object",
+          description:
+            "Any subset of RetroItem fields to change. PUT passes the body straight to Sequelize with no validation, so nothing is required.",
+          properties: {
+            itemType: { type: "string", enum: ["WHAT_WENT_WELL", "WHAT_DID_NOT_GO_WELL", "NEEDS_IMPROVEMENT"] },
+            content: { type: "string" },
+            userId: { type: "integer" },
+            retroId: { type: "integer" },
+          },
+        },
 
         Comment: {
           type: "object",
@@ -621,7 +781,12 @@ const options = {
             id: { type: "integer", example: 1 },
             content: { type: "string" },
             userId: { type: "integer" },
-            ticketId: { type: "integer", nullable: true },
+            ticketId: { type: "integer" },
+            testId: {
+              type: "integer",
+              nullable: true,
+              description: "Always null on comments created through this API — no endpoint currently sets it.",
+            },
             createdAt: { type: "string", format: "date-time" },
             user: {
               type: "object",
@@ -639,6 +804,133 @@ const options = {
             content: { type: "string", example: "Looks good, @Priya Shah can you take a look?" },
             userId: { type: "integer" },
             ticketId: { type: "integer" },
+          },
+        },
+
+        TicketHistory: {
+          type: "object",
+          description:
+            "One recorded change to a ticket. Written automatically on ticket create and on every ticket update — there is no endpoint for creating these by hand.",
+          properties: {
+            id: { type: "integer", example: 41 },
+            field: {
+              type: "string",
+              nullable: true,
+              example: "statusId",
+              description: "Which ticket attribute changed. Null marks the 'ticket created' row.",
+              enum: [
+                "title",
+                "description",
+                "type",
+                "priority",
+                "storyPoints",
+                "githubBranchName",
+                "githubBranchCreatedAt",
+                "githubPrURL",
+                "assigneeId",
+                "projectId",
+                "sprintId",
+                "statusId",
+                "repoId",
+              ],
+            },
+            oldValue: { type: "string", nullable: true, example: "2", description: "The raw previous value." },
+            oldLabel: {
+              type: "string",
+              nullable: true,
+              example: "In Progress",
+              description:
+                "The previous value in human-readable form. Identical to oldValue except for the foreign-key fields (assigneeId resolves to an email, sprintId/statusId/repoId to a name), where it is resolved for display. A sprintId of null resolves to \"backlog\".",
+            },
+            newValue: { type: "string", nullable: true, example: "3" },
+            newLabel: { type: "string", nullable: true, example: "In Review" },
+            message: {
+              type: "string",
+              example: "Ticket statusId changed by: priya.shah@sprintly.dev",
+              description: 'Either "Ticket created by: <email>" or "Ticket <field> changed by: <email>".',
+            },
+            userId: {
+              type: "integer",
+              nullable: true,
+              description: "Who made the change. Null for changes made by the server itself, such as a GitHub webhook delivery.",
+            },
+            ticketId: { type: "integer" },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
+
+        TestHistory: {
+          type: "object",
+          description: "One recorded event against a test.",
+          properties: {
+            id: { type: "integer", example: 7 },
+            message: { type: "string", example: "Marked PASSED after re-running the seed script." },
+            userId: { type: "integer" },
+            testId: { type: "integer" },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
+        TestHistoryInput: {
+          type: "object",
+          required: ["message", "userId"],
+          description:
+            "Both fields are required by the database but neither is validated by the controller — omitting one returns 500, not 400. userId is taken from the body, not from the authenticated session, so it is not checked against the caller.",
+          properties: {
+            message: { type: "string", example: "Marked PASSED after re-running the seed script." },
+            userId: { type: "integer", description: "The user this history entry is attributed to." },
+          },
+        },
+
+        UserActivityLog: {
+          type: "object",
+          description:
+            "One audit-log entry. Written automatically by the controllers that perform the action — there is no endpoint for creating these by hand.",
+          properties: {
+            id: { type: "integer", example: 128 },
+            action: {
+              type: "string",
+              example: "Ticket created",
+              enum: [
+                "Login",
+                "Logout",
+                "User created",
+                "Global role changed",
+                "Project role changed",
+                "Project created",
+                "Project deleted",
+                "Member added",
+                "Member removed",
+                "Ticket created",
+                "Ticket updated",
+                "Ticket deleted",
+                "Sprint created",
+                "Sprint updated",
+                "Sprint deleted",
+                "GitHub repo linked",
+                "GitHub branch created",
+                "GitHub PR created",
+                "GitHub PR opened",
+                "GitHub PR merged",
+                "GitHub token updated",
+                "GitHub token cleared",
+                "Board status updated",
+                "Test status changed",
+                "Attachment uploaded",
+                "Attachment deleted",
+                "Retro created",
+                "Retro item added",
+              ],
+            },
+            detail: {
+              type: "string",
+              example: ' created ticket "Refactor database seed script"',
+              description:
+                "A sentence fragment meant to be appended to the acting user's name, so it begins with a leading space.",
+            },
+            ipAddress: { type: "string", nullable: true, example: "203.0.113.7" },
+            userAgent: { type: "string", nullable: true },
+            userId: { type: "integer", nullable: true },
+            createdAt: { type: "string", format: "date-time" },
           },
         },
       },

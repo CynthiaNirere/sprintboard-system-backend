@@ -54,7 +54,10 @@ module.exports = (app) => {
    *             $ref: '#/components/schemas/GithubWebhookPayload'
    *     responses:
    *       200:
-   *         description: A ticket was moved, or the ping was acknowledged.
+   *         description: >
+   *           A ticket was moved, or the ping was acknowledged. A ping returns
+   *           only `{ "message": "pong" }` — ticketId and statusId are present
+   *           only when a ticket actually moved.
    *         content:
    *           application/json:
    *             schema:
@@ -76,7 +79,15 @@ module.exports = (app) => {
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/Message'
+   *               type: object
+   *               properties:
+   *                 message:
+   *                   type: string
+   *                   example: More than one ticket matches this branch.
+   *                 reason:
+   *                   type: string
+   *                   description: A machine-readable code, present only on the ambiguous-match case.
+   *                   enum: [AMBIGUOUS_TICKET]
    *       400:
    *         description: Raw body unavailable — the webhook is not sending application/json.
    *         content:
@@ -91,6 +102,10 @@ module.exports = (app) => {
    *               $ref: '#/components/schemas/Error'
    *       500:
    *         description: The stored secret could not be decrypted, or processing failed.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
   router.post("/github/webhook", GithubWebhook.handle);
 
