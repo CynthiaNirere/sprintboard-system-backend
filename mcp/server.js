@@ -28,5 +28,6 @@ server.start({
   transportType: "httpStream",
   httpStream: {
     port: 3201, // separate from your existing backend's port (3200)
+    host: "0.0.0.0", // bind to all interfaces so other containers (e.g. backend) can reach it — not just 127.0.0.1 inside this one
   },
 });

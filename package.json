@@ -34,7 +34,7 @@
     ]
   },
   "dependencies": {
-    "@google/genai": "^2.15.0",
+    "@anthropic-ai/sdk": "^0.116.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",
@@ -46,6 +46,7 @@
     "sequelize": "^6.19.0",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
+    "tsx": "^4.23.12",
     "zod": "^4.4.3"
   },
   "devDependencies": {

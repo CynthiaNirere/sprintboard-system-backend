@@ -4,11 +4,31 @@ services:
     container_name: backend
     env_file:
       - .env
+    environment:
+      - MCP_SERVER_URL=http://mcp:3201/mcp
     depends_on:
       db:
         condition: service_healthy
 
     command: npm start
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - jira_network
+
+  mcp:
+    build: .
+    container_name: mcp
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: npx tsx mcp/server.js
     restart: unless-stopped
     logging:
       driver: json-file
