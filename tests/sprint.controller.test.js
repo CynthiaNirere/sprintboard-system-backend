@@ -1,223 +1,269 @@
-jest.mock("../app/models", () => ({
-  sprint: {
-    create: jest.fn(),
-    bulkCreate: jest.fn(),
-    findAll: jest.fn(),
-    findByPk: jest.fn(),
-    update: jest.fn(),
-    destroy: jest.fn(),
-  },
-  Sequelize: { Op: {} },
-}));
+const db = require("../models");
+const Sprint = db.sprint;
+const Op = db.Sequelize.Op;
+const UserActivityLog = db.userActivityLog;
+const { LogActions } = require("../config/userActivityLogActions");
 
-const db = require("../app/models");
-const sprintController = require("../app/controllers/sprint.controller");
+// Create and Save a Sprint
+exports.create = async (req, res) => {
+  // Validate request
+  if (req.body.name === undefined) {
+    const error = new Error("Name cannot be empty for sprint!");
+    error.statusCode = 400;
+    throw error;
+  } else if (req.body.startDate === undefined) {
+    const error = new Error("Start date cannot be empty for sprint!");
+    error.statusCode = 400;
+    throw error;
+  } else if (req.body.endDate === undefined) {
+    const error = new Error("End date cannot be empty for sprint!");
+    error.statusCode = 400;
+    throw error;
+  } else if (req.body.projectId === undefined) {
+    const error = new Error("Project id cannot be empty for sprint!");
+    error.statusCode = 400;
+    throw error;
+  }
 
-/**
- * Builds a fake Express res object.
- * Controllers finish by calling res.send(data) or res.status(500)
- */
-const mockRes = () => {
-  const res = {};
-  res.status = jest.fn().mockReturnValue(res);
-  res.send = jest.fn().mockReturnValue(res);
-  return res;
+  // Create a Sprint
+  const sprint = {
+    name: req.body.name,
+    startDate: req.body.startDate,
+    endDate: req.body.endDate,
+    isActive: req.body.isActive ?? true,
+    projectId: req.body.projectId,
+  };
+
+  try {
+    const data = await Sprint.create(sprint);
+
+    const requestedById = req.userId;
+
+    // Log the action to the user activity log
+    try {
+      await UserActivityLog.create({
+        userId: requestedById,
+        action: LogActions.SPRINT_CREATED,
+        detail: ` created sprint ${sprint.name}`,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+    } catch (error) {
+      console.log("Error writing SPRINT_CREATED action to User Activity Log: ", error);
+    }
+
+    res.send(data);
+  } catch (err) {
+    res.status(400).send({
+      message: err.message || "Some error occurred while creating the Sprint.",
+    });
+  }
 };
 
-// resets their call history rather than reseeding real tables.
-beforeEach(() => {
-  jest.clearAllMocks();
-});
+// Create recurring sprints (e.g. eight 2-week sprints in one call)
+exports.createRecurring = async (req, res) => {
+  const { name, startDate, lengthDays, count, projectId } = req.body;
 
-describe("sprint.create", () => {
-  it("saves a sprint to the database", async () => {
-    const res = mockRes();
-    const fakeSprint = {
-      id: 1,
-      name: "Sprint 1",
-      startDate: "2026-08-01",
-      endDate: "2026-08-14",
-      isActive: true,
-      projectId: 5,
-    };
-    db.sprint.create.mockResolvedValue(fakeSprint);
-
-    await sprintController.create(
-      {
-        body: {
-          name: "Sprint 1",
-          startDate: "2026-08-01",
-          endDate: "2026-08-14",
-          projectId: 5,
-        },
-      },
-      res
-    );
-
-    expect(db.sprint.create).toHaveBeenCalledWith({
-      name: "Sprint 1",
-      startDate: "2026-08-01",
-      endDate: "2026-08-14",
-      isActive: true,
-      projectId: 5,
+  if (!name || !startDate || !lengthDays || !count || !projectId) {
+    return res.status(400).send({
+      message: "name, startDate, lengthDays, count, and projectId are required!",
     });
-    expect(res.send).toHaveBeenCalledWith(fakeSprint);
-  });
+  }
 
-  it("throws when the name is missing", async () => {
-    const res = mockRes();
+  const sprints = [];
+  let current = new Date(startDate);
 
-    await expect(
-      sprintController.create(
-        {
-          body: {
-            startDate: "2026-08-01",
-            endDate: "2026-08-14",
-            projectId: 5,
-          },
-        },
-        res
-      )
-    ).rejects.toThrow("Name cannot be empty");
+  for (let i = 0; i < count; i++) {
+    const end = new Date(current);
+    end.setDate(end.getDate() + lengthDays - 1);
 
-    expect(db.sprint.create).not.toHaveBeenCalled();
-  });
-});
-
-describe("sprint.findAll", () => {
-  it("returns the sprints for a project", async () => {
-    const fakeSprints = [
-      { id: 1, name: "Sprint A", projectId: 5, startDate: "2026-08-01" },
-    ];
-    db.sprint.findAll.mockResolvedValue(fakeSprints);
-
-    const res = mockRes();
-    await sprintController.findAll({ query: { projectId: 5 } }, res);
-
-    expect(db.sprint.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { projectId: 5 },
-        order: [["startDate", "ASC"]],
-      })
-    );
-    expect(res.send).toHaveBeenCalledWith(fakeSprints);
-  });
-});
-
-// createRecurring bulk-generates sequential sprints (e.g. six 2-week sprints
-// in one call). This file mocks the DB, so these check what was PASSED to
-// Sprint.bulkCreate rather than querying the DB afterward, since a mocked
-// findAll has no way to "see" what a separate mocked bulkCreate produced.
-describe("sprint.createRecurring", () => {
-  it("calls bulkCreate with sequential names and back-to-back dates", async () => {
-    const res = mockRes();
-    db.sprint.bulkCreate.mockResolvedValue([]);
-
-    await sprintController.createRecurring(
-      {
-        body: {
-          name: "Sprint",
-          startDate: "2026-08-01",
-          lengthDays: 14,
-          count: 3,
-          projectId: 5,
-        },
-      },
-      res
-    );
-
-    expect(db.sprint.bulkCreate).toHaveBeenCalledWith([
-      { name: "Sprint 1", startDate: "2026-08-01", endDate: "2026-08-14", isActive: true, projectId: 5 },
-      { name: "Sprint 2", startDate: "2026-08-15", endDate: "2026-08-28", isActive: true, projectId: 5 },
-      { name: "Sprint 3", startDate: "2026-08-29", endDate: "2026-09-11", isActive: true, projectId: 5 },
-    ], { individualHooks: true });
-  });
-
-  it("marks every generated sprint as active", async () => {
-    const res = mockRes();
-    db.sprint.bulkCreate.mockResolvedValue([]);
-
-    await sprintController.createRecurring(
-      {
-        body: {
-          name: "Sprint",
-          startDate: "2026-08-01",
-          lengthDays: 7,
-          count: 2,
-          projectId: 5,
-        },
-      },
-      res
-    );
-
-    const sprintsPassedIn = db.sprint.bulkCreate.mock.calls[0][0];
-    expect(sprintsPassedIn).toHaveLength(2);
-    sprintsPassedIn.forEach((sprint) => {
-      expect(sprint.isActive).toBe(true);
+    sprints.push({
+      name: `${name} ${i + 1}`,
+      startDate: current.toISOString().split("T")[0],
+      endDate: end.toISOString().split("T")[0],
+      isActive: true,
+      projectId: projectId,
     });
-  });
 
-  it("returns 400 when a required field is missing, without calling bulkCreate", async () => {
-    const res = mockRes();
+    current = new Date(end);
+    current.setDate(current.getDate() + 1);
+  }
 
-    await sprintController.createRecurring(
-      {
-        body: {
-          name: "Sprint",
-          startDate: "2026-08-01",
-          lengthDays: 14,
-          // count intentionally omitted
-          projectId: 5,
-        },
-      },
-      res
-    );
+  try {
+    const data = await Sprint.bulkCreate(sprints,{individualHooks: true});
+    res.send(data);
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || "Some error occurred while creating recurring Sprints.",
+    });
+  }
+};
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(db.sprint.bulkCreate).not.toHaveBeenCalled();
-  });
+// Retrieve all Sprints (optionally filtered by project)
+exports.findAll = async (req, res) => {
+  const projectId = req.query.projectId;
+  var condition = projectId ? { projectId: projectId } : null;
 
-  it("sends back whatever bulkCreate resolves with", async () => {
-    const res = mockRes();
-    const fakeCreated = [
-      { id: 1, name: "Sprint 1", projectId: 5 },
-      { id: 2, name: "Sprint 2", projectId: 5 },
-    ];
-    db.sprint.bulkCreate.mockResolvedValue(fakeCreated);
+  try {
+    const data = await Sprint.findAll({
+      where: condition,
+      include: [
+              {
+                model: db.retrospective,
+                as: "sprintRetrospective",
+                include: [
+                   {
+                    model: db.retroItem,
+                    as: "retrospectiveItems",
+                    include: [
+                      {
+                        model: db.user,
+                        as: "user",
+                        attributes: ["id", "email"]
+                      },
+                    ]
+                  }
+                ]
+              },
+             
+            ],
+      order: [["startDate", "ASC"]],
+    });
+    res.send(data);
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || "Some error occurred while retrieving sprints.",
+    });
+  }
+};
 
-    await sprintController.createRecurring(
-      {
-        body: {
-          name: "Sprint",
-          startDate: "2026-08-01",
-          lengthDays: 14,
-          count: 2,
-          projectId: 5,
-        },
-      },
-      res
-    );
+// Find a single Sprint with an id
+exports.findOne = async (req, res) => {
+  const id = req.params.id;
 
-    expect(res.send).toHaveBeenCalledWith(fakeCreated);
-  });
+  try {
+    const data = await Sprint.findByPk(id,{
+      include: [
+              {
+                model: db.retrospective,
+                as: "sprintRetrospective",
+                include: [
+                   {
+                    model: db.retroItem,
+                    as: "retrospectiveItems",
+                    include: [
+                      {
+                        model: db.user,
+                        as: "user",
+                        attributes: ["id", "email"]
+                      },
+                    ]
+                  }
+                ]
+              },
+             
+            ],
+    });
+    res.send(data);
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || "Error retrieving Sprint with id=" + id,
+    });
+  }
+};
 
-  it("returns 400 when bulkCreate fails", async () => {
-    const res = mockRes();
-    db.sprint.bulkCreate.mockRejectedValue(new Error("db down"));
+// Update a Sprint by the id in the request
+exports.update = async (req, res) => {
+  const id = req.params.id;
+  const sprint = await Sprint.findByPk(id);
 
-    await sprintController.createRecurring(
-      {
-        body: {
-          name: "Sprint",
-          startDate: "2026-08-01",
-          lengthDays: 14,
-          count: 2,
-          projectId: 5,
-        },
-      },
-      res
-    );
+  try {
+    const num = await Sprint.update(req.body, {
+      where: { id: id },
+      individualHooks: true
+    });
+    if (num == 1) {
+      const requestedById = req.userId;
 
-    expect(res.status).toHaveBeenCalledWith(400);
-  });
-});
+      // Log the action to the user activity log
+      try {
+        await UserActivityLog.create({
+          userId: requestedById,
+          action: LogActions.SPRINT_UPDATED,
+          detail: ` updated sprint ${sprint.name}`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing SPRINT_UPDATED action to User Activity Log: ", error);
+      }
+
+      res.send({
+        message: "Sprint was updated successfully.",
+      });
+    } else {
+      res.send({
+        message: `Cannot update Sprint with id=${id}. Maybe Sprint was not found or req.body is empty!`,
+      });
+    }
+  } catch (err) {
+    res.status(400).send({
+      message: err.message || "Error updating Sprint with id=" + id,
+    });
+  }
+};
+
+// Delete a Sprint with the specified id in the request
+exports.delete = async (req, res) => {
+  const id = req.params.id;
+  const sprint = await Sprint.findByPk(id);
+
+  try {
+    const number = await Sprint.destroy({
+      where: { id: id },
+    });
+    if (number == 1) {
+      const requestedById = req.userId;
+
+      // Log the action to the user activity log
+      try {
+        await UserActivityLog.create({
+          userId: requestedById,
+          action: LogActions.SPRINT_DELETED,
+          detail: ` deleted sprint ${sprint.name}`,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        });
+      } catch (error) {
+        console.log("Error writing SPRINT_DELETED action to User Activity Log: ", error);
+      }
+
+      res.send({
+        message: "Sprint was deleted successfully!",
+      });
+    } else {
+      res.send({
+        message: `Cannot delete Sprint with id=${id}. Maybe Sprint was not found!`,
+      });
+    }
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || "Could not delete Sprint with id=" + id,
+    });
+  }
+};
+
+// Delete all Sprints from the database.
+exports.deleteAll = async (req, res) => {
+  try {
+    const number = await Sprint.destroy({
+      where: {},
+      truncate: false,
+    });
+    res.send({ message: `${number} Sprints were deleted successfully!` });
+  } catch (err) {
+    res.status(500).send({
+      message: err.message || "Some error occurred while removing all sprints.",
+    });
+  }
+};
