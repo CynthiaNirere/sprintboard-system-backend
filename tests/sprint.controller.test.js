@@ -54,6 +54,10 @@ describe("sprint.create", () => {
       res
     );
 
+    // BUSINESS RULE: a new sprint defaults to active when the caller
+    // doesn't say otherwise. req.body above never sets isActive at all —
+    // this assertion is what actually proves the controller's `?? true`
+    // fallback kicked in, not just that create() got called.
     expect(db.sprint.create).toHaveBeenCalledWith({
       name: "Sprint 1",
       startDate: "2026-08-01",
@@ -64,6 +68,7 @@ describe("sprint.create", () => {
     expect(res.send).toHaveBeenCalledWith(fakeSprint);
   });
 
+  // BUSINESS RULE: name is a required field for a single sprint.
   it("throws when the name is missing", async () => {
     const res = mockRes();
 
@@ -94,6 +99,8 @@ describe("sprint.findAll", () => {
     const res = mockRes();
     await sprintController.findAll({ query: { projectId: 5 } }, res);
 
+    // so a project's sprint list always reads
+    // earliest-to-latest regardless of the order they were created in.
     expect(db.sprint.findAll).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { projectId: 5 },
@@ -108,7 +115,17 @@ describe("sprint.findAll", () => {
 // in one call). This file mocks the DB, so these check what was PASSED to
 // Sprint.bulkCreate rather than querying the DB afterward, since a mocked
 // findAll has no way to "see" what a separate mocked bulkCreate produced.
+//
+// createRecurring isn't just validate-then-save, it's a small
+// scheduling algorithm
 describe("sprint.createRecurring", () => {
+
+  // BUSINESS LOGIC — the core scheduling rule: sprints tile the calendar
+  // with no gaps and no overlaps.
+  //   Sprint 1: 2026-08-01 to 2026-08-14  (14 days: the 1st IS day 1, the
+  //             14th IS day 14 — lengthDays counts inclusively)
+  //   Sprint 2: 2026-08-15 to ...          (starts the very next day —
+  //             not the 14th again, not the 16th with a gap)
   it("calls bulkCreate with sequential names and back-to-back dates", async () => {
     const res = mockRes();
     db.sprint.bulkCreate.mockResolvedValue([]);
@@ -133,6 +150,9 @@ describe("sprint.createRecurring", () => {
     ], { individualHooks: true });
   });
 
+  // BUSINESS RULE: same "defaults to active" rule as sprint.create above,
+  // but verified across an entire generated batch rather than one sprint —
+  // makes sure the default is applied inside the loop, not just once.
   it("marks every generated sprint as active", async () => {
     const res = mockRes();
     db.sprint.bulkCreate.mockResolvedValue([]);
@@ -157,6 +177,12 @@ describe("sprint.createRecurring", () => {
     });
   });
 
+  // BUSINESS RULE: all five fields (name, startDate, lengthDays, count,
+  // projectId) are required before ANY sprint gets generated — count is
+  // the one left out here, but the same guard covers all five. Without
+  // this check, a missing count could mean generating zero sprints
+  // silently, or a missing lengthDays could produce sprints with
+  // nonsensical (NaN) end dates.
   it("returns 400 when a required field is missing, without calling bulkCreate", async () => {
     const res = mockRes();
 
